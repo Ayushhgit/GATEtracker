@@ -8,13 +8,13 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, startOfWeek, addDays, isSameDay, isToday } from 'date-fns';
 import { api } from '@/services/api';
 import { Task, TaskStatus } from '@/types';
-import { TaskCard, LoadingSpinner, ProgressBar } from '@/components';
+import { TaskCard, LoadingSpinner } from '@/components';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 export default function WeekScreen() {
@@ -24,6 +24,7 @@ export default function WeekScreen() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const fetchTasks = async () => {
     try {
@@ -87,14 +88,22 @@ export default function WeekScreen() {
   }
 
   return (
-    <LinearGradient colors={Colors.gradientDark as [string, string]} style={styles.container}>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Week</Text>
+          <Text style={styles.headerSubtitle}>Plan your study schedule</Text>
+        </View>
+      </View>
+
       {/* Week Navigation */}
       <View style={styles.weekNav}>
         <TouchableOpacity
           style={styles.navButton}
           onPress={() => setWeekOffset(weekOffset - 1)}
         >
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
+          <Ionicons name="chevron-back" size={20} color={Colors.text} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.weekTitle}
@@ -107,21 +116,16 @@ export default function WeekScreen() {
             {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
           </Text>
           {weekOffset === 0 && (
-            <LinearGradient
-              colors={Colors.gradientPrimary as [string, string]}
-              style={styles.currentWeekBadge}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
+            <View style={styles.currentWeekBadge}>
               <Text style={styles.currentWeek}>This Week</Text>
-            </LinearGradient>
+            </View>
           )}
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navButton}
           onPress={() => setWeekOffset(weekOffset + 1)}
         >
-          <Ionicons name="chevron-forward" size={24} color={Colors.text} />
+          <Ionicons name="chevron-forward" size={20} color={Colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -142,69 +146,43 @@ export default function WeekScreen() {
               key={date.toISOString()}
               style={[
                 styles.dayCard,
-                todayDate && styles.dayCardToday,
+                isSelected && styles.dayCardSelected,
+                todayDate && !isSelected && styles.dayCardToday,
               ]}
               onPress={() => setSelectedDate(date)}
             >
-              {isSelected ? (
-                <LinearGradient
-                  colors={Colors.gradientPrimary as [string, string]}
-                  style={styles.dayCardGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                >
-                  <Text style={[styles.dayName, styles.dayNameSelected]}>
-                    {format(date, 'EEE')}
-                  </Text>
-                  <Text style={[styles.dayNumber, styles.dayNumberSelected]}>
-                    {format(date, 'd')}
-                  </Text>
-                  {stats.total > 0 && (
-                    <View style={styles.dayProgress}>
-                      <View
-                        style={[
-                          styles.dayProgressFill,
-                          {
-                            width: `${stats.rate * 100}%`,
-                            backgroundColor: '#FFF',
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                  <Text style={[styles.dayCount, styles.dayCountSelected]}>
-                    {stats.completed}/{stats.total}
-                  </Text>
-                </LinearGradient>
-              ) : (
-                <View style={styles.dayCardInner}>
-                  <Text style={styles.dayName}>{format(date, 'EEE')}</Text>
-                  <Text style={styles.dayNumber}>{format(date, 'd')}</Text>
-                  {stats.total > 0 && (
-                    <View style={styles.dayProgress}>
-                      <View
-                        style={[
-                          styles.dayProgressFill,
-                          {
-                            width: `${stats.rate * 100}%`,
-                            backgroundColor:
-                              stats.rate === 1 ? Colors.success : Colors.primary,
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                  <Text style={styles.dayCount}>
-                    {stats.completed}/{stats.total}
-                  </Text>
+              <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
+                {format(date, 'EEE')}
+              </Text>
+              <Text style={[styles.dayNumber, isSelected && styles.dayNumberSelected]}>
+                {format(date, 'd')}
+              </Text>
+              {stats.total > 0 && (
+                <View style={styles.dayProgress}>
+                  <View
+                    style={[
+                      styles.dayProgressFill,
+                      {
+                        width: `${stats.rate * 100}%`,
+                        backgroundColor: isSelected
+                          ? Colors.text
+                          : stats.rate === 1
+                          ? Colors.success
+                          : Colors.primary,
+                      },
+                    ]}
+                  />
                 </View>
               )}
+              <Text style={[styles.dayCount, isSelected && styles.dayCountSelected]}>
+                {stats.completed}/{stats.total}
+              </Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* Selected Day Tasks */}
+      {/* Selected Day Header */}
       <View style={styles.selectedDayHeader}>
         <Text style={styles.selectedDayTitle}>
           {isToday(selectedDate)
@@ -220,15 +198,11 @@ export default function WeekScreen() {
           }
           style={styles.addButton}
         >
-          <LinearGradient
-            colors={Colors.gradientPrimary as [string, string]}
-            style={styles.addButtonGradient}
-          >
-            <Ionicons name="add" size={20} color="#FFF" />
-          </LinearGradient>
+          <Ionicons name="add" size={20} color={Colors.text} />
         </TouchableOpacity>
       </View>
 
+      {/* Task List */}
       <ScrollView
         style={styles.taskList}
         contentContainerStyle={styles.taskListContent}
@@ -242,13 +216,11 @@ export default function WeekScreen() {
       >
         {selectedTasks.length === 0 ? (
           <View style={styles.emptyDay}>
-            <LinearGradient
-              colors={[Colors.primary + '30', Colors.primary + '10']}
-              style={styles.emptyIconContainer}
-            >
+            <View style={styles.emptyIconContainer}>
               <Ionicons name="sunny-outline" size={48} color={Colors.primary} />
-            </LinearGradient>
-            <Text style={styles.emptyDayText}>No tasks scheduled</Text>
+            </View>
+            <Text style={styles.emptyDayTitle}>No tasks scheduled</Text>
+            <Text style={styles.emptyDayText}>Add a task to get started</Text>
             <TouchableOpacity
               style={styles.addTaskButton}
               onPress={() =>
@@ -258,14 +230,7 @@ export default function WeekScreen() {
                 })
               }
             >
-              <LinearGradient
-                colors={Colors.gradientPrimary as [string, string]}
-                style={styles.addTaskButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={styles.addTaskButtonText}>Add Task</Text>
-              </LinearGradient>
+              <Text style={styles.addTaskButtonText}>Add Task</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -279,28 +244,52 @@ export default function WeekScreen() {
           ))
         )}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    backgroundColor: Colors.backgroundElevated,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  headerContent: {
+    marginBottom: Spacing.sm,
+  },
+  headerTitle: {
+    fontSize: FontSizes.xxl,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  headerSubtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   weekNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.backgroundElevated,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   navButton: {
-    padding: Spacing.sm,
-    backgroundColor: Colors.backgroundLight,
-    borderRadius: BorderRadius.sm,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   weekTitle: {
     alignItems: 'center',
@@ -311,6 +300,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   currentWeekBadge: {
+    backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
@@ -318,11 +308,11 @@ const styles = StyleSheet.create({
   },
   currentWeek: {
     fontSize: FontSizes.xs,
-    color: '#FFF',
+    color: Colors.text,
     fontWeight: '600',
   },
   daySelector: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.backgroundElevated,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -333,23 +323,21 @@ const styles = StyleSheet.create({
   dayCard: {
     width: 64,
     marginHorizontal: Spacing.xs,
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  dayCardToday: {
-    borderWidth: 2,
+  dayCardSelected: {
+    backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  dayCardGradient: {
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-  },
-  dayCardInner: {
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    backgroundColor: Colors.backgroundLight,
+  dayCardToday: {
+    borderColor: Colors.primary,
+    borderWidth: 2,
   },
   dayName: {
     fontSize: FontSizes.xs,
@@ -366,7 +354,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   dayNumberSelected: {
-    color: '#FFF',
+    color: Colors.text,
   },
   dayProgress: {
     width: 40,
@@ -391,8 +379,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.sm,
   },
   selectedDayTitle: {
@@ -401,46 +389,53 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   addButton: {
-    borderRadius: BorderRadius.sm,
-    overflow: 'hidden',
-  },
-  addButtonGradient: {
-    padding: Spacing.xs,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   taskList: {
     flex: 1,
   },
   taskListContent: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl,
   },
   emptyDay: {
     alignItems: 'center',
-    paddingVertical: Spacing.xxl,
+    paddingVertical: Spacing.xxxl,
   },
   emptyIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyDayTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '600',
+    color: Colors.text,
   },
   emptyDayText: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    marginTop: Spacing.md,
+    marginTop: Spacing.xs,
   },
   addTaskButton: {
-    marginTop: Spacing.lg,
+    marginTop: Spacing.xl,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-  },
-  addTaskButtonGradient: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
   },
   addTaskButtonText: {
-    color: '#FFF',
+    color: Colors.text,
     fontWeight: '600',
+    fontSize: FontSizes.md,
   },
 });

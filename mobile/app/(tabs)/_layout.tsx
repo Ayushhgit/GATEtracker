@@ -2,8 +2,7 @@ import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '@/constants';
+import { Colors, BorderRadius } from '@/constants';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -14,46 +13,41 @@ export default function TabsLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: Colors.backgroundElevated,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
-          height: 65 + (insets.bottom > 0 ? insets.bottom : 12),
+          paddingTop: 6,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          height: 56 + (insets.bottom > 0 ? insets.bottom : 8),
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '500',
           marginTop: 2,
         },
         headerStyle: {
           backgroundColor: Colors.background,
-          shadowColor: 'transparent',
-          elevation: 0,
         },
+        headerShadowVisible: false,
         headerTintColor: Colors.text,
         headerTitleStyle: {
-          fontWeight: '700',
-          fontSize: 20,
+          fontWeight: '600',
+          fontSize: 18,
         },
-        headerBackground: () => (
-          <LinearGradient
-            colors={[Colors.backgroundLight, Colors.background]}
-            style={{ flex: 1 }}
-          />
-        ),
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Home',
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? {
-              backgroundColor: color + '20',
-              padding: 8,
-              borderRadius: 12,
-            } : { padding: 8 }}>
+              backgroundColor: Colors.primaryMuted,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: BorderRadius.md,
+            } : undefined}>
               <Ionicons name={focused ? "home" : "home-outline"} size={22} color={color} />
             </View>
           ),
@@ -63,12 +57,14 @@ export default function TabsLayout() {
         name="today"
         options={{
           title: 'Today',
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? {
-              backgroundColor: color + '20',
-              padding: 8,
-              borderRadius: 12,
-            } : { padding: 8 }}>
+              backgroundColor: Colors.primaryMuted,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: BorderRadius.md,
+            } : undefined}>
               <Ionicons name={focused ? "today" : "today-outline"} size={22} color={color} />
             </View>
           ),
@@ -78,12 +74,14 @@ export default function TabsLayout() {
         name="week"
         options={{
           title: 'Week',
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? {
-              backgroundColor: color + '20',
-              padding: 8,
-              borderRadius: 12,
-            } : { padding: 8 }}>
+              backgroundColor: Colors.primaryMuted,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: BorderRadius.md,
+            } : undefined}>
               <Ionicons name={focused ? "calendar" : "calendar-outline"} size={22} color={color} />
             </View>
           ),
@@ -92,13 +90,15 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="progress"
         options={{
-          title: 'Progress',
+          title: 'Stats',
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? {
-              backgroundColor: color + '20',
-              padding: 8,
-              borderRadius: 12,
-            } : { padding: 8 }}>
+              backgroundColor: Colors.primaryMuted,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: BorderRadius.md,
+            } : undefined}>
               <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={22} color={color} />
             </View>
           ),
@@ -108,12 +108,14 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: 'Mentor',
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? {
-              backgroundColor: color + '20',
-              padding: 8,
-              borderRadius: 12,
-            } : { padding: 8 }}>
+              backgroundColor: Colors.primaryMuted,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: BorderRadius.md,
+            } : undefined}>
               <Ionicons name={focused ? "chatbubbles" : "chatbubbles-outline"} size={22} color={color} />
             </View>
           ),

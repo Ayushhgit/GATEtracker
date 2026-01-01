@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Insight } from '@/types';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
@@ -12,96 +11,56 @@ interface InsightCardProps {
 }
 
 export function InsightCard({ insight, onPress, onDismiss }: InsightCardProps) {
-  const getTypeIcon = (): keyof typeof Ionicons.glyphMap => {
+  const getTypeConfig = () => {
     switch (insight.insight_type) {
       case 'weak_subject':
-        return 'alert-circle';
+        return { icon: 'alert-circle' as const, color: Colors.error, bg: Colors.errorMuted };
       case 'consistency_drop':
-        return 'trending-down';
+        return { icon: 'trending-down' as const, color: Colors.warning, bg: Colors.warningMuted };
       case 'overload':
-        return 'warning';
+        return { icon: 'warning' as const, color: Colors.error, bg: Colors.errorMuted };
       case 'missed_revision':
-        return 'refresh';
+        return { icon: 'refresh' as const, color: Colors.warning, bg: Colors.warningMuted };
       case 'strength':
-        return 'star';
+        return { icon: 'star' as const, color: Colors.success, bg: Colors.successMuted };
       case 'recommendation':
-        return 'bulb';
+        return { icon: 'bulb' as const, color: Colors.primary, bg: Colors.primaryMuted };
       default:
-        return 'information-circle';
+        return { icon: 'information-circle' as const, color: Colors.info, bg: Colors.infoMuted };
     }
   };
 
-  const getTypeColor = () => {
-    switch (insight.insight_type) {
-      case 'weak_subject':
-      case 'overload':
-        return Colors.error;
-      case 'consistency_drop':
-      case 'missed_revision':
-        return Colors.warning;
-      case 'strength':
-        return Colors.success;
-      default:
-        return Colors.primary;
-    }
-  };
-
-  const getGradientColors = (): [string, string] => {
-    const color = getTypeColor();
-    return [color + '30', color + '10'];
-  };
+  const config = getTypeConfig();
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, insight.priority === 1 && styles.highPriority]}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
     >
-      {/* Priority indicator */}
-      {insight.priority === 1 && (
-        <LinearGradient
-          colors={[Colors.error, Colors.error + '60']}
-          style={styles.priorityBar}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-      )}
+      <View style={[styles.iconContainer, { backgroundColor: config.bg }]}>
+        <Ionicons name={config.icon} size={20} color={config.color} />
+      </View>
 
-      <View style={styles.header}>
-        <LinearGradient
-          colors={getGradientColors()}
-          style={styles.iconContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name={getTypeIcon()} size={20} color={getTypeColor()} />
-        </LinearGradient>
-        <View style={styles.titleContainer}>
+      <View style={styles.content}>
+        <View style={styles.header}>
           <Text style={styles.title} numberOfLines={1}>
             {insight.title}
           </Text>
-          <Text style={[styles.type, { color: getTypeColor() }]}>
-            {insight.insight_type.replace('_', ' ').toUpperCase()}
-          </Text>
+          {!insight.is_read && <View style={styles.unreadDot} />}
         </View>
-        {onDismiss && (
-          <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
-            <Ionicons name="close" size={20} color={Colors.textMuted} />
-          </TouchableOpacity>
-        )}
+        <Text style={styles.description} numberOfLines={2}>
+          {insight.content}
+        </Text>
+        <Text style={[styles.type, { color: config.color }]}>
+          {insight.insight_type.replace(/_/g, ' ')}
+        </Text>
       </View>
-      <Text style={styles.content} numberOfLines={3}>
-        {insight.content}
-      </Text>
-      {!insight.is_read && (
-        <View style={styles.unreadDot}>
-          <LinearGradient
-            colors={Colors.gradientPrimary as [string, string]}
-            style={styles.unreadDotInner}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-        </View>
+
+      {onDismiss && (
+        <TouchableOpacity onPress={onDismiss} style={styles.dismissButton} hitSlop={8}>
+          <Ionicons name="close" size={18} color={Colors.textTertiary} />
+        </TouchableOpacity>
       )}
     </TouchableOpacity>
   );
@@ -109,66 +68,62 @@ export function InsightCard({ insight, onPress, onDismiss }: InsightCardProps) {
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    padding: Spacing.lg,
     marginBottom: Spacing.sm,
-    position: 'relative',
     borderWidth: 1,
     borderColor: Colors.border,
-    overflow: 'hidden',
   },
-  priorityBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
+  highPriority: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.error,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  content: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.sm,
-  },
-  titleContainer: {
-    flex: 1,
+    marginBottom: 4,
   },
   title: {
     fontSize: FontSizes.md,
     fontWeight: '600',
     color: Colors.text,
+    flex: 1,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    marginLeft: Spacing.sm,
+  },
+  description: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 6,
   },
   type: {
     fontSize: FontSizes.xs,
-    marginTop: 2,
     fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   dismissButton: {
     padding: Spacing.xs,
-  },
-  content: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-  unreadDot: {
-    position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  unreadDotInner: {
-    flex: 1,
+    marginLeft: Spacing.sm,
+    alignSelf: 'flex-start',
   },
 });

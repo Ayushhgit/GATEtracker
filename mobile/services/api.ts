@@ -216,6 +216,16 @@ class ApiService {
     await this.client.delete(`/insights/${id}`);
   }
 
+  async clearAllInsights(): Promise<{ count: number }> {
+    const response = await this.client.delete<{ message: string; count: number }>('/insights/clear-all');
+    return response.data;
+  }
+
+  async markAllInsightsRead(): Promise<{ count: number }> {
+    const response = await this.client.patch<{ message: string; count: number }>('/insights/mark-all-read');
+    return response.data;
+  }
+
   // Chat
   async sendMessage(message: string, sessionId?: number): Promise<ChatResponse> {
     const response = await this.client.post<ChatResponse>('/chat', {

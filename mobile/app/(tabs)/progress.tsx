@@ -8,8 +8,9 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart, PieChart } from 'react-native-chart-kit';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { ProgressSummary } from '@/types';
 import { LoadingSpinner, ProgressBar, StatCard } from '@/components';
@@ -21,6 +22,7 @@ export default function ProgressScreen() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const fetchProgress = async () => {
     try {
@@ -50,9 +52,10 @@ export default function ProgressScreen() {
 
   if (!summary) {
     return (
-      <LinearGradient colors={Colors.gradientDark as [string, string]} style={styles.errorContainer}>
+      <View style={styles.errorContainer}>
+        <Ionicons name="cloud-offline-outline" size={48} color={Colors.textTertiary} />
         <Text style={styles.errorText}>Failed to load progress</Text>
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -83,9 +86,9 @@ export default function ProgressScreen() {
   const chartConfig = {
     backgroundColor: Colors.surface,
     backgroundGradientFrom: Colors.surface,
-    backgroundGradientTo: Colors.surfaceLight,
+    backgroundGradientTo: Colors.surface,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
+    color: (opacity = 1) => `rgba(124, 58, 237, ${opacity})`,
     labelColor: () => Colors.textSecondary,
     style: {
       borderRadius: 16,
@@ -98,17 +101,28 @@ export default function ProgressScreen() {
     barPercentage: 0.6,
   };
 
-  const getConsistencyGradient = (): [string, string] => {
-    if (summary.consistency_score >= 0.8) {
-      return Colors.gradientSuccess as [string, string];
-    } else if (summary.consistency_score >= 0.6) {
-      return [Colors.warning, Colors.warning + '80'];
-    }
-    return Colors.gradientWarning as [string, string];
+  const getConsistencyColor = () => {
+    if (summary.consistency_score >= 0.8) return Colors.success;
+    if (summary.consistency_score >= 0.6) return Colors.warning;
+    return Colors.error;
+  };
+
+  const getConsistencyLabel = () => {
+    if (summary.consistency_score >= 0.8) return 'Excellent!';
+    if (summary.consistency_score >= 0.6) return 'Good';
+    return 'Needs Work';
   };
 
   return (
-    <LinearGradient colors={Colors.gradientDark as [string, string]} style={styles.container}>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Statistics</Text>
+          <Text style={styles.headerSubtitle}>Track your progress</Text>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -128,12 +142,11 @@ export default function ProgressScreen() {
             icon="flame"
             iconColor={Colors.warning}
           />
-          <View style={{ width: Spacing.sm }} />
           <StatCard
             title="Longest Streak"
             value={`${summary.longest_streak}d`}
             icon="trophy"
-            iconColor={Colors.secondary}
+            iconColor={Colors.accent}
           />
         </View>
 
@@ -144,7 +157,6 @@ export default function ProgressScreen() {
             icon="checkmark-done"
             iconColor={Colors.success}
           />
-          <View style={{ width: Spacing.sm }} />
           <StatCard
             title="Hours Studied"
             value={`${Math.round(summary.total_minutes_studied / 60)}h`}
@@ -166,24 +178,15 @@ export default function ProgressScreen() {
                   Based on last 14 days
                 </Text>
               </View>
-              <LinearGradient
-                colors={getConsistencyGradient()}
-                style={styles.consistencyBadge}
-              >
-                <Text style={styles.consistencyLabel}>
-                  {summary.consistency_score >= 0.8
-                    ? 'Excellent!'
-                    : summary.consistency_score >= 0.6
-                    ? 'Good'
-                    : 'Needs Work'}
-                </Text>
-              </LinearGradient>
+              <View style={[styles.consistencyBadge, { backgroundColor: getConsistencyColor() }]}>
+                <Text style={styles.consistencyLabel}>{getConsistencyLabel()}</Text>
+              </View>
             </View>
             <ProgressBar
               progress={summary.consistency_score}
               showPercentage={false}
               height={10}
-              gradientColors={getConsistencyGradient()}
+              color={getConsistencyColor()}
             />
           </View>
         </View>
@@ -197,7 +200,7 @@ export default function ProgressScreen() {
                 labels: weeklyLabels,
                 datasets: [{ data: weeklyData.map(d => d || 0) }],
               }}
-              width={screenWidth - Spacing.md * 4}
+              width={screenWidth - Spacing.lg * 4}
               height={180}
               yAxisSuffix="%"
               chartConfig={chartConfig}
@@ -217,10 +220,7 @@ export default function ProgressScreen() {
               .map((subject) => (
                 <View key={subject.subject_id} style={styles.subjectRow}>
                   <View style={styles.subjectHeader}>
-                    <LinearGradient
-                      colors={[subject.color + '60', subject.color + '30']}
-                      style={styles.subjectDot}
-                    />
+                    <View style={[styles.subjectDot, { backgroundColor: subject.color }]} />
                     <Text style={styles.subjectName} numberOfLines={1}>
                       {subject.subject_name}
                     </Text>
@@ -231,11 +231,17 @@ export default function ProgressScreen() {
                   <ProgressBar
                     progress={subject.completion_rate}
                     showPercentage
-                    gradientColors={[subject.color, subject.color + '80']}
+                    color={subject.color}
                     height={8}
                   />
                 </View>
               ))}
+            {summary.subject_progress.filter((s) => s.total_tasks > 0).length === 0 && (
+              <View style={styles.emptySubjects}>
+                <Ionicons name="book-outline" size={32} color={Colors.textMuted} />
+                <Text style={styles.emptySubjectsText}>No subject data yet</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -246,7 +252,7 @@ export default function ProgressScreen() {
             <View style={styles.chartCard}>
               <PieChart
                 data={subjectPieData}
-                width={screenWidth - Spacing.md * 4}
+                width={screenWidth - Spacing.lg * 4}
                 height={200}
                 chartConfig={chartConfig}
                 accessor="tasks"
@@ -263,7 +269,13 @@ export default function ProgressScreen() {
           <Text style={styles.sectionTitle}>Daily Stats</Text>
           <View style={styles.card}>
             {summary.weekly_progress.map((day, index) => (
-              <View key={index} style={styles.dailyRow}>
+              <View
+                key={index}
+                style={[
+                  styles.dailyRow,
+                  index === summary.weekly_progress.length - 1 && { borderBottomWidth: 0 },
+                ]}
+              >
                 <Text style={styles.dailyDate}>
                   {new Date(day.date).toLocaleDateString('en-US', {
                     weekday: 'short',
@@ -280,10 +292,10 @@ export default function ProgressScreen() {
                     {
                       backgroundColor:
                         day.completion_rate >= 0.8
-                          ? Colors.success + '20'
+                          ? Colors.successMuted
                           : day.completion_rate >= 0.5
-                          ? Colors.warning + '20'
-                          : Colors.error + '20',
+                          ? Colors.warningMuted
+                          : Colors.errorMuted,
                     },
                   ]}>
                     <Text
@@ -308,43 +320,65 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        <View style={{ height: Spacing.xl }} />
+        <View style={{ height: Spacing.xxl }} />
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    backgroundColor: Colors.backgroundElevated,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  headerContent: {
+    marginBottom: Spacing.sm,
+  },
+  headerTitle: {
+    fontSize: FontSizes.xxl,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  headerSubtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   content: {
-    padding: Spacing.md,
+    padding: Spacing.lg,
   },
   statsRow: {
     flexDirection: 'row',
+    gap: Spacing.md,
     marginBottom: Spacing.md,
   },
   section: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
     fontSize: FontSizes.lg,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.text,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   card: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   chartCard: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.sm,
+    padding: Spacing.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
@@ -356,7 +390,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   consistencyPercent: {
     fontSize: FontSizes.xxxl,
@@ -366,6 +400,7 @@ const styles = StyleSheet.create({
   consistencySubtitle: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
+    marginTop: 2,
   },
   consistencyBadge: {
     paddingHorizontal: Spacing.md,
@@ -373,9 +408,9 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   consistencyLabel: {
-    fontSize: FontSizes.md,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.text,
   },
   subjectRow: {
     marginBottom: Spacing.md,
@@ -383,12 +418,12 @@ const styles = StyleSheet.create({
   subjectHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   subjectDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     marginRight: Spacing.sm,
   },
   subjectName: {
@@ -402,11 +437,20 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginLeft: Spacing.sm,
   },
+  emptySubjects: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+  },
+  emptySubjectsText: {
+    fontSize: FontSizes.sm,
+    color: Colors.textMuted,
+    marginTop: Spacing.sm,
+  },
   dailyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -425,9 +469,9 @@ const styles = StyleSheet.create({
   },
   dailyRateBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: BorderRadius.sm,
-    minWidth: 45,
+    minWidth: 48,
     alignItems: 'center',
   },
   dailyRate: {
@@ -438,9 +482,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background,
   },
   errorText: {
     fontSize: FontSizes.md,
     color: Colors.textSecondary,
+    marginTop: Spacing.md,
   },
 });

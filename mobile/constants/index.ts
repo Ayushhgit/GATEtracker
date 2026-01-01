@@ -1,117 +1,124 @@
 // API Configuration
-// Change this to your backend URL
 export const API_BASE_URL = 'http://localhost:8000/api';
 
-// For production, use your deployed backend URL:
-// export const API_BASE_URL = 'https://your-backend.com/api';
-
-// Dark Theme Colors with Gradients
+// Professional Dark Theme Color Palette
 export const Colors = {
-  // Primary gradient colors
-  primary: '#6366F1',       // Indigo
-  primaryLight: '#818CF8',
-  primaryDark: '#4F46E5',
+  // Primary colors - Soft indigo for primary actions
+  primary: '#7C3AED',
+  primaryLight: '#8B5CF6',
+  primaryDark: '#6D28D9',
+  primaryMuted: 'rgba(124, 58, 237, 0.15)',
 
-  // Accent gradient colors
-  accent: '#8B5CF6',        // Purple
-  accentLight: '#A78BFA',
+  // Accent - Complementary teal for secondary highlights
+  accent: '#06B6D4',
+  accentLight: '#22D3EE',
+  accentMuted: 'rgba(6, 182, 212, 0.15)',
 
-  // Secondary (teal/cyan)
-  secondary: '#14B8A6',
-  secondaryLight: '#2DD4BF',
+  // Background hierarchy - True dark with subtle blue undertone
+  background: '#09090B',
+  backgroundElevated: '#18181B',
+  surface: '#1F1F23',
+  surfaceElevated: '#27272A',
 
-  // Background colors (dark)
-  background: '#0F0F1A',     // Deep dark blue
-  backgroundLight: '#1A1A2E',
-  surface: '#16162A',        // Card surfaces
-  surfaceLight: '#1E1E38',
-
-  // Text colors
-  text: '#FFFFFF',
+  // Text hierarchy
+  text: '#FAFAFA',
   textSecondary: '#A1A1AA',
-  textLight: '#71717A',
+  textTertiary: '#71717A',
   textMuted: '#52525B',
 
-  // Border colors
-  border: '#27273D',
-  borderLight: '#3F3F5C',
+  // Borders - Subtle separation
+  border: '#27272A',
+  borderLight: '#3F3F46',
+  divider: '#27272A',
 
-  // Status colors
-  error: '#EF4444',
-  errorLight: '#FCA5A5',
+  // Semantic colors
+  success: '#10B981',
+  successMuted: 'rgba(16, 185, 129, 0.15)',
   warning: '#F59E0B',
-  warningLight: '#FCD34D',
-  success: '#22C55E',
-  successLight: '#86EFAC',
+  warningMuted: 'rgba(245, 158, 11, 0.15)',
+  error: '#EF4444',
+  errorMuted: 'rgba(239, 68, 68, 0.15)',
+  info: '#3B82F6',
+  infoMuted: 'rgba(59, 130, 246, 0.15)',
 
-  // Task status colors
+  // Task status
   pending: '#F59E0B',
-  completed: '#22C55E',
+  completed: '#10B981',
   skipped: '#EF4444',
-  in_progress: '#6366F1',
+  in_progress: '#3B82F6',
 
-  // Priority colors
+  // Priority
   highPriority: '#EF4444',
   mediumPriority: '#F59E0B',
-  lowPriority: '#22C55E',
+  lowPriority: '#10B981',
 
-  // Gradient presets
-  gradientPrimary: ['#6366F1', '#8B5CF6'],
-  gradientAccent: ['#8B5CF6', '#EC4899'],
-  gradientSuccess: ['#22C55E', '#14B8A6'],
-  gradientWarning: ['#F59E0B', '#EF4444'],
-  gradientDark: ['#0F0F1A', '#1A1A2E'],
-  gradientCard: ['#1E1E38', '#16162A'],
+  // Overlay
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  overlayLight: 'rgba(0, 0, 0, 0.3)',
+
+  // Card shadows (for elevation)
+  shadow: '#000000',
 };
 
-// Spacing
+// Consistent spacing scale
 export const Spacing = {
   xs: 4,
   sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+  xxxl: 48,
 };
 
-// Font sizes
+// Typography scale
 export const FontSizes = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
+  xs: 11,
+  sm: 13,
+  md: 15,
+  lg: 17,
   xl: 20,
   xxl: 24,
   xxxl: 32,
+  display: 40,
 };
 
-// Border radius
+// Font weights
+export const FontWeights = {
+  regular: '400' as const,
+  medium: '500' as const,
+  semibold: '600' as const,
+  bold: '700' as const,
+};
+
+// Border radius scale
 export const BorderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
+  xs: 4,
+  sm: 6,
+  md: 8,
+  lg: 12,
+  xl: 16,
   xxl: 24,
   full: 9999,
 };
 
-// Subject colors (brighter for dark theme)
+// Subject colors - Vibrant but balanced for dark theme
 export const SubjectColors: Record<string, string> = {
-  'Data Structures and Algorithms': '#EF4444',
-  'Operating Systems': '#F97316',
-  'Database Management Systems': '#EAB308',
-  'Computer Networks': '#22C55E',
-  'Theory of Computation': '#14B8A6',
-  'Compiler Design': '#06B6D4',
-  'Computer Organization and Architecture': '#3B82F6',
-  'Digital Logic': '#6366F1',
-  'Discrete Mathematics': '#8B5CF6',
-  'Engineering Mathematics': '#A855F7',
-  'Programming and Data Structures': '#EC4899',
-  'Aptitude': '#F43F5E',
+  'Data Structures and Algorithms': '#F87171',
+  'Operating Systems': '#FB923C',
+  'Database Management Systems': '#FBBF24',
+  'Computer Networks': '#34D399',
+  'Theory of Computation': '#2DD4BF',
+  'Compiler Design': '#22D3EE',
+  'Computer Organization and Architecture': '#60A5FA',
+  'Digital Logic': '#818CF8',
+  'Discrete Mathematics': '#A78BFA',
+  'Engineering Mathematics': '#C084FC',
+  'Programming and Data Structures': '#F472B6',
+  'Aptitude': '#FB7185',
 };
 
-// Status display text
+// Status labels
 export const StatusLabels: Record<string, string> = {
   pending: 'Pending',
   completed: 'Completed',
@@ -124,4 +131,11 @@ export const PriorityLabels: Record<number, string> = {
   1: 'High',
   2: 'Medium',
   3: 'Low',
+};
+
+// Animation durations
+export const Animations = {
+  fast: 150,
+  normal: 250,
+  slow: 400,
 };

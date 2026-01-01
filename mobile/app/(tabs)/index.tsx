@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,7 +35,6 @@ export default function DashboardScreen() {
       setData(dashboard);
     } catch (error) {
       console.error('Failed to fetch dashboard:', error);
-      Alert.alert('Error', 'Failed to load dashboard data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,25 +59,50 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleClearAllInsights = () => {
+    Alert.alert(
+      'Clear All Insights',
+      'Are you sure you want to clear all insights?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.clearAllInsights();
+              fetchData();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear insights');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
-    return <LoadingSpinner fullScreen message="Loading dashboard..." />;
+    return <LoadingSpinner fullScreen message="Loading..." />;
   }
 
   if (!data) {
     return (
-      <LinearGradient colors={Colors.gradientDark as [string, string]} style={styles.errorContainer}>
+      <View style={[styles.container, styles.errorContainer]}>
+        <Ionicons name="cloud-offline-outline" size={48} color={Colors.textTertiary} />
         <Text style={styles.errorText}>Failed to load dashboard</Text>
-        <TouchableOpacity onPress={fetchData}>
+        <TouchableOpacity onPress={fetchData} style={styles.retryButton}>
           <Text style={styles.retryText}>Tap to retry</Text>
         </TouchableOpacity>
-      </LinearGradient>
+      </View>
     );
   }
 
+  const progress = data.today_total > 0 ? data.today_completed / data.today_total : 0;
+
   return (
-    <LinearGradient colors={Colors.gradientDark as [string, string]} style={styles.container}>
+    <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -89,140 +112,117 @@ export default function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Welcome Header */}
-        <View style={styles.welcomeHeader}>
-          <Text style={styles.welcomeText}>Welcome back!</Text>
-          <Text style={styles.dateText}>
-            {new Date().toLocaleDateString('en-US', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-            })}
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Good {getTimeOfDay()}</Text>
+            <Text style={styles.dateText}>
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/task/new')}
+            style={styles.addButton}
+          >
+            <Ionicons name="add" size={24} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Progress Card */}
+        <View style={styles.progressCard}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressTitle}>Today's Progress</Text>
+            <Text style={styles.progressPercent}>{Math.round(progress * 100)}%</Text>
+          </View>
+          <ProgressBar
+            progress={progress}
+            showPercentage={false}
+            color={Colors.primary}
+            height={8}
+          />
+          <Text style={styles.progressSubtext}>
+            {data.today_completed} of {data.today_total} tasks completed
           </Text>
         </View>
 
-        {/* Header Stats */}
+        {/* Stats Row */}
         <View style={styles.statsRow}>
           <StatCard
             title="Streak"
             value={`${data.current_streak}d`}
             icon="flame"
             iconColor={Colors.warning}
+            compact
           />
-          <View style={{ width: Spacing.sm }} />
           <StatCard
-            title="Today"
-            value={`${data.today_completed}/${data.today_total}`}
-            icon="checkmark-circle"
-            iconColor={Colors.success}
-          />
-          <View style={{ width: Spacing.sm }} />
-          <StatCard
-            title="Week"
+            title="This Week"
             value={`${Math.round(data.week_completion_rate * 100)}%`}
-            icon="calendar"
-            iconColor={Colors.primary}
+            icon="trending-up"
+            iconColor={Colors.success}
+            compact
           />
-        </View>
-
-        {/* Today's Progress */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Progress</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/today')}>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.card}>
-            <ProgressBar
-              progress={data.today_total > 0 ? data.today_completed / data.today_total : 0}
-              label={`${data.today_completed} of ${data.today_total} tasks completed`}
-              gradientColors={Colors.gradientSuccess as [string, string]}
-            />
-          </View>
         </View>
 
         {/* Today's Tasks */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today's Tasks</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/task/new')}
-              style={styles.addButton}
-            >
-              <LinearGradient
-                colors={Colors.gradientPrimary as [string, string]}
-                style={styles.addButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Ionicons name="add" size={20} color="#FFF" />
-              </LinearGradient>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/today')}>
+              <Text style={styles.seeAll}>View All</Text>
             </TouchableOpacity>
           </View>
+
           {data.today_tasks.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <LinearGradient
-                colors={[Colors.success + '30', Colors.success + '10']}
-                style={styles.emptyIconContainer}
-              >
-                <Ionicons name="checkmark-done-circle" size={48} color={Colors.success} />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>No tasks for today!</Text>
-              <Text style={styles.emptySubtitle}>Add a task or use the planner</Text>
+            <View style={styles.emptyState}>
+              <Ionicons name="checkmark-circle-outline" size={40} color={Colors.success} />
+              <Text style={styles.emptyTitle}>All caught up!</Text>
+              <Text style={styles.emptySubtitle}>No tasks scheduled for today</Text>
             </View>
           ) : (
-            data.today_tasks.slice(0, 3).map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onPress={() => router.push(`/task/${task.id}`)}
-                onStatusChange={(status) => handleTaskStatusChange(task.id, status)}
-              />
-            ))
-          )}
-          {data.today_tasks.length > 3 && (
-            <TouchableOpacity
-              style={styles.moreButton}
-              onPress={() => router.push('/(tabs)/today')}
-            >
-              <Text style={styles.moreText}>
-                +{data.today_tasks.length - 3} more tasks
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
-            </TouchableOpacity>
+            <>
+              {data.today_tasks.slice(0, 3).map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onPress={() => router.push(`/task/${task.id}`)}
+                  onStatusChange={(status) => handleTaskStatusChange(task.id, status)}
+                  compact
+                />
+              ))}
+              {data.today_tasks.length > 3 && (
+                <TouchableOpacity
+                  style={styles.moreButton}
+                  onPress={() => router.push('/(tabs)/today')}
+                >
+                  <Text style={styles.moreText}>
+                    +{data.today_tasks.length - 3} more
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
 
-        {/* Subject Overview */}
+        {/* Subject Progress */}
         {data.subjects_overview.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Subject Progress</Text>
+              <Text style={styles.sectionTitle}>Subjects</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/progress')}>
                 <Text style={styles.seeAll}>Details</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.card}>
+            <View style={styles.subjectsCard}>
               {data.subjects_overview.slice(0, 4).map((subject) => (
                 <View key={subject.subject_id} style={styles.subjectRow}>
-                  <View style={styles.subjectInfo}>
-                    <LinearGradient
-                      colors={[subject.color + '60', subject.color + '30']}
-                      style={styles.subjectDot}
-                    />
-                    <Text style={styles.subjectName} numberOfLines={1}>
-                      {subject.subject_name}
-                    </Text>
-                  </View>
-                  <View style={styles.subjectProgress}>
-                    <ProgressBar
-                      progress={subject.completion_rate}
-                      showPercentage={false}
-                      gradientColors={[subject.color, subject.color + '80']}
-                      height={6}
-                    />
-                  </View>
+                  <View style={[styles.subjectDot, { backgroundColor: subject.color }]} />
+                  <Text style={styles.subjectName} numberOfLines={1}>
+                    {subject.subject_name}
+                  </Text>
                   <Text style={styles.subjectPercent}>
                     {Math.round(subject.completion_rate * 100)}%
                   </Text>
@@ -232,25 +232,27 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Recent Insights */}
+        {/* Insights */}
         {data.recent_insights.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Insights</Text>
-              {data.pending_insights > 0 && (
-                <LinearGradient
-                  colors={Colors.gradientAccent as [string, string]}
-                  style={styles.badge}
-                >
-                  <Text style={styles.badgeText}>{data.pending_insights}</Text>
-                </LinearGradient>
-              )}
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>Insights</Text>
+                {data.pending_insights > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{data.pending_insights}</Text>
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity onPress={handleClearAllInsights}>
+                <Text style={styles.clearAll}>Clear All</Text>
+              </TouchableOpacity>
             </View>
-            {data.recent_insights.map((insight) => (
+            {data.recent_insights.slice(0, 2).map((insight) => (
               <InsightCard
                 key={insight.id}
                 insight={insight}
-                onDismiss={() => api.markInsightRead(insight.id).then(fetchData)}
+                onDismiss={() => api.deleteInsight(insight.id).then(fetchData)}
               />
             ))}
           </View>
@@ -264,106 +266,155 @@ export default function DashboardScreen() {
               style={styles.actionButton}
               onPress={() => router.push('/planner')}
             >
-              <LinearGradient
-                colors={Colors.gradientPrimary as [string, string]}
-                style={styles.actionIconContainer}
-              >
-                <Ionicons name="sparkles" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Generate Plan</Text>
+              <View style={[styles.actionIcon, { backgroundColor: Colors.primaryMuted }]}>
+                <Ionicons name="sparkles" size={20} color={Colors.primary} />
+              </View>
+              <Text style={styles.actionText}>AI Planner</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => router.push('/(tabs)/chat')}
             >
-              <LinearGradient
-                colors={Colors.gradientSuccess as [string, string]}
-                style={styles.actionIconContainer}
-              >
-                <Ionicons name="chatbubble-ellipses" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Ask Mentor</Text>
+              <View style={[styles.actionIcon, { backgroundColor: Colors.accentMuted }]}>
+                <Ionicons name="chatbubble-ellipses" size={20} color={Colors.accent} />
+              </View>
+              <Text style={styles.actionText}>Mentor</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => api.generateInsights().then(fetchData)}
             >
-              <LinearGradient
-                colors={Colors.gradientWarning as [string, string]}
-                style={styles.actionIconContainer}
-              >
-                <Ionicons name="bulb" size={22} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Get Insights</Text>
+              <View style={[styles.actionIcon, { backgroundColor: Colors.warningMuted }]}>
+                <Ionicons name="bulb" size={20} color={Colors.warning} />
+              </View>
+              <Text style={styles.actionText}>Insights</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={{ height: Spacing.xl }} />
+        <View style={{ height: Spacing.xxl }} />
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
+}
+
+function getTimeOfDay() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   content: {
-    padding: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
-  welcomeHeader: {
-    marginBottom: Spacing.lg,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
   },
-  welcomeText: {
+  greeting: {
     fontSize: FontSizes.xxl,
     fontWeight: '700',
     color: Colors.text,
+    textTransform: 'capitalize',
   },
   dateText: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    marginTop: Spacing.xs,
+    marginTop: 2,
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  progressCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  progressTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  progressPercent: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  progressSubtext: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
   },
   statsRow: {
     flexDirection: 'row',
-    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
   },
   section: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   sectionTitle: {
     fontSize: FontSizes.lg,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.text,
   },
   seeAll: {
     fontSize: FontSizes.sm,
     color: Colors.primary,
+    fontWeight: '500',
+  },
+  clearAll: {
+    fontSize: FontSizes.sm,
+    color: Colors.error,
+    fontWeight: '500',
+  },
+  badge: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    color: Colors.text,
+    fontSize: FontSizes.xs,
     fontWeight: '600',
   },
-  addButton: {
-    borderRadius: BorderRadius.sm,
-    overflow: 'hidden',
-  },
-  addButtonGradient: {
-    padding: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-  },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  emptyCard: {
+  emptyState: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
@@ -371,15 +422,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   emptyTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.md,
     fontWeight: '600',
     color: Colors.text,
     marginTop: Spacing.md,
@@ -390,99 +434,84 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   moreButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
   },
   moreText: {
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: '500',
+    fontSize: FontSizes.sm,
+  },
+  subjectsCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   subjectRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  subjectInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 100,
+    paddingVertical: Spacing.sm,
   },
   subjectDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: Spacing.sm,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: Spacing.md,
   },
   subjectName: {
+    flex: 1,
     fontSize: FontSizes.sm,
     color: Colors.text,
-    flex: 1,
-  },
-  subjectProgress: {
-    flex: 1,
-    marginHorizontal: Spacing.sm,
   },
   subjectPercent: {
-    width: 40,
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    textAlign: 'right',
     fontWeight: '600',
-  },
-  badge: {
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginLeft: Spacing.sm,
-  },
-  badgeText: {
-    color: '#FFF',
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
   },
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: Spacing.md,
     marginTop: Spacing.sm,
-    gap: Spacing.sm,
   },
   actionButton: {
     flex: 1,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    padding: Spacing.lg,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  actionIconContainer: {
-    width: 48,
-    height: 48,
+  actionIcon: {
+    width: 44,
+    height: 44,
     borderRadius: BorderRadius.md,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
   actionText: {
-    fontSize: FontSizes.xs,
+    fontSize: FontSizes.sm,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   errorContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorText: {
     fontSize: FontSizes.md,
     color: Colors.textSecondary,
+    marginTop: Spacing.md,
+  },
+  retryButton: {
+    marginTop: Spacing.md,
   },
   retryText: {
     fontSize: FontSizes.md,
     color: Colors.primary,
-    marginTop: Spacing.md,
+    fontWeight: '500',
   },
 });

@@ -11,7 +11,6 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
@@ -32,10 +31,9 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
 
-  // Quick prompts - including delete examples
   const quickPrompts = [
     "What should I study today?",
-    "Delete all pending tasks for today",
+    "Delete all pending tasks",
     "Show my tasks",
     "Replan my week",
   ];
@@ -65,7 +63,6 @@ export default function ChatScreen() {
       const response = await api.sendMessage(text, sessionId || undefined);
       setSessionId(response.session_id);
 
-      // Remove loading message and add response
       setMessages((prev) => {
         const filtered = prev.filter((m) => !m.isLoading);
         return [
@@ -80,46 +77,28 @@ export default function ChatScreen() {
         ];
       });
 
-      // Show action notification
       if (response.action_taken) {
-        const isDelete = response.action_taken.toLowerCase().includes('deleted');
-        const isCreate = response.action_taken.toLowerCase().includes('created');
-        const isUpdate = response.action_taken.toLowerCase().includes('updated') ||
-                        response.action_taken.toLowerCase().includes('rescheduled');
-
-        Alert.alert(
-          isDelete ? 'Tasks Deleted' : isCreate ? 'Tasks Created' : isUpdate ? 'Tasks Updated' : 'Action Completed',
-          response.action_taken,
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Action Completed', response.action_taken, [{ text: 'OK' }]);
       }
     } catch (error: any) {
-      console.error('Failed to send message:', error);
       setMessages((prev) => prev.filter((m) => !m.isLoading));
-      Alert.alert(
-        'Error',
-        error.response?.data?.detail || 'Failed to get response from mentor'
-      );
+      Alert.alert('Error', 'Failed to get response');
     } finally {
       setIsLoading(false);
     }
   };
 
   const startNewChat = () => {
-    Alert.alert(
-      'New Chat',
-      'Start a new conversation?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes',
-          onPress: () => {
-            setMessages([]);
-            setSessionId(null);
-          },
+    Alert.alert('New Chat', 'Start a new conversation?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Yes',
+        onPress: () => {
+          setMessages([]);
+          setSessionId(null);
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -135,71 +114,41 @@ export default function ChatScreen() {
     }
 
     return (
-      <View
-        style={[
-          styles.messageBubble,
-          isUser ? styles.userBubble : styles.assistantBubble,
-        ]}
-      >
-        {isUser ? (
-          <LinearGradient
-            colors={Colors.gradientPrimary as [string, string]}
-            style={styles.userBubbleGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Text style={[styles.messageText, styles.userMessageText]}>
-              {item.content}
-            </Text>
-          </LinearGradient>
-        ) : (
-          <>
-            <View style={styles.mentorHeader}>
-              <LinearGradient
-                colors={Colors.gradientPrimary as [string, string]}
-                style={styles.mentorIconBg}
-              >
-                <Ionicons name="school" size={12} color="#FFF" />
-              </LinearGradient>
-              <Text style={styles.mentorLabel}>GATE Mentor</Text>
+      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
+        {!isUser && (
+          <View style={styles.mentorHeader}>
+            <View style={styles.mentorIcon}>
+              <Ionicons name="school" size={12} color={Colors.primary} />
             </View>
-            <Text style={styles.messageText}>
-              {item.content}
-            </Text>
-            {item.actionTaken && (
-              <View style={styles.actionBadge}>
-                <Ionicons
-                  name={item.actionTaken.includes('Deleted') ? 'trash' :
-                        item.actionTaken.includes('Created') ? 'add-circle' :
-                        'checkmark-circle'}
-                  size={14}
-                  color={Colors.success}
-                />
-                <Text style={styles.actionBadgeText}>{item.actionTaken}</Text>
-              </View>
-            )}
-          </>
+            <Text style={styles.mentorLabel}>GATE Mentor</Text>
+          </View>
+        )}
+        <Text style={[styles.messageText, isUser && styles.userMessageText]}>
+          {item.content}
+        </Text>
+        {item.actionTaken && (
+          <View style={styles.actionBadge}>
+            <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+            <Text style={styles.actionBadgeText}>{item.actionTaken}</Text>
+          </View>
         )}
       </View>
     );
   };
 
   return (
-    <LinearGradient colors={Colors.gradientDark as [string, string]} style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={0}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
           <View style={styles.headerInfo}>
-            <LinearGradient
-              colors={Colors.gradientPrimary as [string, string]}
-              style={styles.mentorAvatar}
-            >
-              <Ionicons name="school" size={24} color="#FFF" />
-            </LinearGradient>
+            <View style={styles.avatarContainer}>
+              <Ionicons name="school" size={24} color={Colors.primary} />
+            </View>
             <View>
               <Text style={styles.headerTitle}>GATE Mentor</Text>
               <Text style={styles.headerSubtitle}>Can create, edit & delete tasks</Text>
@@ -210,22 +159,18 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Messages */}
+        {/* Messages or Empty State */}
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <LinearGradient
-              colors={[Colors.primary + '30', Colors.primary + '10']}
-              style={styles.emptyIconContainer}
-            >
-              <Ionicons name="chatbubbles-outline" size={64} color={Colors.primary} />
-            </LinearGradient>
-            <Text style={styles.emptyTitle}>Chat with your GATE Mentor</Text>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="chatbubbles-outline" size={48} color={Colors.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>Ask your GATE Mentor</Text>
             <Text style={styles.emptySubtitle}>
-              Ask questions, create tasks, or delete existing ones
+              Get study advice, manage tasks, or ask questions
             </Text>
 
             <View style={styles.quickPrompts}>
-              <Text style={styles.quickPromptsTitle}>Try asking:</Text>
               {quickPrompts.map((prompt, index) => (
                 <TouchableOpacity
                   key={index}
@@ -237,14 +182,6 @@ export default function ChatScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-
-            <View style={styles.helpSection}>
-              <Text style={styles.helpTitle}>You can say things like:</Text>
-              <Text style={styles.helpText}>• "Delete the DSA task for tomorrow"</Text>
-              <Text style={styles.helpText}>• "Remove all OS tasks this week"</Text>
-              <Text style={styles.helpText}>• "Create a new task for DBMS revision"</Text>
-              <Text style={styles.helpText}>• "Reschedule today's tasks to next week"</Text>
-            </View>
           </View>
         ) : (
           <FlatList
@@ -253,38 +190,30 @@ export default function ChatScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
             contentContainerStyle={styles.messageList}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: true })
-            }
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           />
         )}
 
-        {/* Quick Actions when chatting */}
+        {/* Quick Actions */}
         {messages.length > 0 && (
           <View style={styles.quickActions}>
             <TouchableOpacity
               style={styles.quickAction}
               onPress={() => sendMessage("Show my tasks for today")}
             >
-              <Text style={styles.quickActionText} numberOfLines={1}>
-                Show tasks
-              </Text>
+              <Text style={styles.quickActionText}>Show tasks</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickAction}
               onPress={() => sendMessage("What should I focus on?")}
             >
-              <Text style={styles.quickActionText} numberOfLines={1}>
-                Focus advice
-              </Text>
+              <Text style={styles.quickActionText}>Focus advice</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.quickAction, styles.quickActionDanger]}
               onPress={() => sendMessage("Delete completed tasks")}
             >
-              <Text style={[styles.quickActionText, styles.quickActionDangerText]} numberOfLines={1}>
-                Clean up
-              </Text>
+              <Text style={[styles.quickActionText, { color: Colors.error }]}>Clean up</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -293,7 +222,7 @@ export default function ChatScreen() {
         <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
           <TextInput
             style={styles.input}
-            placeholder="Ask your mentor or request changes..."
+            placeholder="Ask anything..."
             placeholderTextColor={Colors.textMuted}
             value={inputText}
             onChangeText={setInputText}
@@ -302,32 +231,26 @@ export default function ChatScreen() {
             editable={!isLoading}
           />
           <TouchableOpacity
-            style={styles.sendButton}
+            style={[styles.sendButton, inputText.trim() && !isLoading && styles.sendButtonActive]}
             onPress={() => sendMessage(inputText)}
             disabled={!inputText.trim() || isLoading}
           >
-            <LinearGradient
-              colors={inputText.trim() && !isLoading
-                ? Colors.gradientPrimary as [string, string]
-                : [Colors.border, Colors.border]}
-              style={styles.sendButtonGradient}
-            >
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim() && !isLoading ? '#FFF' : Colors.textMuted}
-              />
-            </LinearGradient>
+            <Ionicons
+              name="send"
+              size={20}
+              color={inputText.trim() && !isLoading ? Colors.text : Colors.textMuted}
+            />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -336,8 +259,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
+    backgroundColor: Colors.backgroundElevated,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -345,13 +269,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  mentorAvatar: {
+  avatarContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: Colors.primaryMuted,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.sm,
+    marginRight: Spacing.md,
   },
   headerTitle: {
     fontSize: FontSizes.md,
@@ -369,20 +294,21 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
   },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: 'center',
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primaryMuted,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '600',
     color: Colors.text,
-    marginTop: Spacing.md,
   },
   emptySubtitle: {
     fontSize: FontSizes.sm,
@@ -391,22 +317,16 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   quickPrompts: {
-    marginTop: Spacing.lg,
+    marginTop: Spacing.xl,
     width: '100%',
-  },
-  quickPromptsTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
   },
   quickPrompt: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -416,49 +336,25 @@ const styles = StyleSheet.create({
     color: Colors.text,
     flex: 1,
   },
-  helpSection: {
-    marginTop: Spacing.lg,
-    padding: Spacing.md,
-    backgroundColor: Colors.primary + '15',
-    borderRadius: BorderRadius.md,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: Colors.primary + '30',
-  },
-  helpTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.primary,
-    marginBottom: Spacing.sm,
-  },
-  helpText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
   messageList: {
-    padding: Spacing.md,
+    padding: Spacing.lg,
     paddingBottom: Spacing.xl,
   },
   messageBubble: {
     maxWidth: '85%',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
   },
   userBubble: {
     alignSelf: 'flex-end',
-    overflow: 'hidden',
-    borderRadius: BorderRadius.lg,
-    borderBottomRightRadius: 4,
-  },
-  userBubbleGradient: {
-    padding: Spacing.md,
+    backgroundColor: Colors.primary,
+    borderBottomRightRadius: BorderRadius.xs,
   },
   assistantBubble: {
-    backgroundColor: Colors.surface,
     alignSelf: 'flex-start',
-    borderRadius: BorderRadius.lg,
-    borderBottomLeftRadius: 4,
-    padding: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderBottomLeftRadius: BorderRadius.xs,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -467,12 +363,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xs,
   },
-  mentorIconBg: {
+  mentorIcon: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    alignItems: 'center',
+    backgroundColor: Colors.primaryMuted,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   mentorLabel: {
     fontSize: FontSizes.xs,
@@ -486,7 +383,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   userMessageText: {
-    color: '#FFF',
+    color: Colors.text,
   },
   loadingText: {
     fontSize: FontSizes.sm,
@@ -509,47 +406,47 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.backgroundElevated,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     gap: Spacing.sm,
   },
   quickAction: {
     flex: 1,
-    backgroundColor: Colors.backgroundLight,
-    paddingHorizontal: Spacing.sm,
+    backgroundColor: Colors.surface,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   quickActionDanger: {
-    backgroundColor: Colors.error + '20',
+    backgroundColor: Colors.errorMuted,
+    borderColor: Colors.error + '30',
   },
   quickActionText: {
     fontSize: FontSizes.xs,
     color: Colors.primary,
-    textAlign: 'center',
     fontWeight: '500',
-  },
-  quickActionDangerText: {
-    color: Colors.error,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
+    backgroundColor: Colors.backgroundElevated,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     gap: Spacing.sm,
   },
   input: {
     flex: 1,
-    backgroundColor: Colors.backgroundLight,
+    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.xl,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     fontSize: FontSizes.md,
     color: Colors.text,
     maxHeight: 100,
@@ -557,13 +454,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   sendButton: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  sendButtonGradient: {
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  sendButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
 });

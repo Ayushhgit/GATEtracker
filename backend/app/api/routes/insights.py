@@ -232,6 +232,55 @@ async def delete_insight(
     return {"message": "Insight deleted"}
 
 
+@router.delete("/clear-all")
+async def clear_all_insights(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Clear all insights for the user."""
+    user_id = int(current_user["sub"])
+
+    result = await db.execute(
+        select(Insight).where(Insight.user_id == user_id)
+    )
+    insights = result.scalars().all()
+
+    count = len(insights)
+    for insight in insights:
+        await db.delete(insight)
+
+    await db.commit()
+
+    return {"message": f"Cleared {count} insights", "count": count}
+
+
+@router.patch("/mark-all-read")
+async def mark_all_insights_read(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark all insights as read."""
+    user_id = int(current_user["sub"])
+
+    result = await db.execute(
+        select(Insight).where(
+            and_(
+                Insight.user_id == user_id,
+                Insight.is_read == False
+            )
+        )
+    )
+    insights = result.scalars().all()
+
+    count = len(insights)
+    for insight in insights:
+        insight.is_read = True
+
+    await db.commit()
+
+    return {"message": f"Marked {count} insights as read", "count": count}
+
+
 @router.get("/summary")
 async def get_insights_summary(
     current_user: dict = Depends(get_current_user),

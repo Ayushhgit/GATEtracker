@@ -8,20 +8,21 @@ import {
   TextStyle,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'small' | 'medium' | 'large';
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
   fullWidth?: boolean;
-  icon?: React.ReactNode;
+  icon?: keyof typeof Ionicons.glyphMap;
+  iconPosition?: 'left' | 'right';
 }
 
 export function Button({
@@ -35,41 +36,48 @@ export function Button({
   textStyle,
   fullWidth = false,
   icon,
+  iconPosition = 'left',
 }: ButtonProps) {
-  const getGradientColors = (): [string, string] | null => {
-    if (disabled) return null;
+  const getStyles = () => {
+    const isDisabled = disabled || loading;
+
     switch (variant) {
       case 'primary':
-        return Colors.gradientPrimary as [string, string];
+        return {
+          bg: isDisabled ? Colors.surfaceElevated : Colors.primary,
+          text: isDisabled ? Colors.textTertiary : Colors.text,
+          border: 'transparent',
+        };
       case 'secondary':
-        return Colors.gradientSuccess as [string, string];
+        return {
+          bg: isDisabled ? Colors.surfaceElevated : Colors.surface,
+          text: isDisabled ? Colors.textTertiary : Colors.text,
+          border: Colors.border,
+        };
+      case 'outline':
+        return {
+          bg: 'transparent',
+          text: isDisabled ? Colors.textTertiary : Colors.primary,
+          border: isDisabled ? Colors.border : Colors.primary,
+        };
+      case 'ghost':
+        return {
+          bg: 'transparent',
+          text: isDisabled ? Colors.textTertiary : Colors.textSecondary,
+          border: 'transparent',
+        };
       case 'danger':
-        return Colors.gradientWarning as [string, string];
+        return {
+          bg: isDisabled ? Colors.surfaceElevated : Colors.error,
+          text: isDisabled ? Colors.textTertiary : Colors.text,
+          border: 'transparent',
+        };
       default:
-        return null;
-    }
-  };
-
-  const getBackgroundColor = () => {
-    if (disabled) return Colors.border;
-    switch (variant) {
-      case 'outline':
-      case 'ghost':
-        return 'transparent';
-      default:
-        return Colors.primary;
-    }
-  };
-
-  const getTextColor = () => {
-    if (disabled) return Colors.textMuted;
-    switch (variant) {
-      case 'outline':
-        return Colors.primary;
-      case 'ghost':
-        return Colors.textSecondary;
-      default:
-        return '#FFFFFF';
+        return {
+          bg: Colors.primary,
+          text: Colors.text,
+          border: 'transparent',
+        };
     }
   };
 
@@ -78,7 +86,7 @@ export function Button({
       case 'small':
         return { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md };
       case 'large':
-        return { paddingVertical: Spacing.md + 4, paddingHorizontal: Spacing.xl };
+        return { paddingVertical: Spacing.lg, paddingHorizontal: Spacing.xl };
       default:
         return { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg };
     }
@@ -86,61 +94,14 @@ export function Button({
 
   const getTextSize = () => {
     switch (size) {
-      case 'small':
-        return FontSizes.sm;
-      case 'large':
-        return FontSizes.lg;
-      default:
-        return FontSizes.md;
+      case 'small': return FontSizes.sm;
+      case 'large': return FontSizes.lg;
+      default: return FontSizes.md;
     }
   };
 
-  const gradientColors = getGradientColors();
-
-  const ButtonContent = () => (
-    <View style={styles.contentRow}>
-      {loading ? (
-        <ActivityIndicator size="small" color={getTextColor()} />
-      ) : (
-        <>
-          {icon && <View style={styles.iconContainer}>{icon}</View>}
-          <Text
-            style={[
-              styles.text,
-              { color: getTextColor(), fontSize: getTextSize() },
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
-        </>
-      )}
-    </View>
-  );
-
-  if (gradientColors && !disabled) {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={disabled || loading}
-        activeOpacity={0.8}
-        style={[fullWidth && styles.fullWidth, style]}
-      >
-        <LinearGradient
-          colors={gradientColors}
-          style={[
-            styles.button,
-            getSizeStyles(),
-            fullWidth && styles.fullWidth,
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <ButtonContent />
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
+  const colors = getStyles();
+  const iconSize = size === 'small' ? 16 : size === 'large' ? 22 : 18;
 
   return (
     <TouchableOpacity
@@ -148,18 +109,32 @@ export function Button({
         styles.button,
         getSizeStyles(),
         {
-          backgroundColor: getBackgroundColor(),
-          borderWidth: variant === 'outline' ? 1.5 : 0,
-          borderColor: variant === 'outline' ? Colors.primary : undefined,
+          backgroundColor: colors.bg,
+          borderColor: colors.border,
+          borderWidth: variant === 'outline' || variant === 'secondary' ? 1 : 0,
         },
         fullWidth && styles.fullWidth,
         style,
       ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
     >
-      <ButtonContent />
+      {loading ? (
+        <ActivityIndicator size="small" color={colors.text} />
+      ) : (
+        <View style={styles.content}>
+          {icon && iconPosition === 'left' && (
+            <Ionicons name={icon} size={iconSize} color={colors.text} style={styles.iconLeft} />
+          )}
+          <Text style={[styles.text, { color: colors.text, fontSize: getTextSize() }, textStyle]}>
+            {title}
+          </Text>
+          {icon && iconPosition === 'right' && (
+            <Ionicons name={icon} size={iconSize} color={colors.text} style={styles.iconRight} />
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -169,20 +144,21 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
   },
   fullWidth: {
     width: '100%',
   },
-  contentRow: {
+  content: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconContainer: {
-    marginRight: Spacing.sm,
   },
   text: {
     fontWeight: '600',
+  },
+  iconLeft: {
+    marginRight: Spacing.sm,
+  },
+  iconRight: {
+    marginLeft: Spacing.sm,
   },
 });
