@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSizes } from '@/constants';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 interface StatCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface StatCardProps {
   icon?: keyof typeof Ionicons.glyphMap;
   iconColor?: string;
   trend?: 'up' | 'down' | 'neutral';
+  gradientColors?: [string, string];
 }
 
 export function StatCard({
@@ -19,6 +21,7 @@ export function StatCard({
   icon,
   iconColor = Colors.primary,
   trend,
+  gradientColors,
 }: StatCardProps) {
   const getTrendIcon = () => {
     if (!trend) return null;
@@ -27,11 +30,11 @@ export function StatCard({
     return <Ionicons name={iconName} size={16} color={color} />;
   };
 
-  return (
-    <View style={styles.container}>
+  const CardContent = () => (
+    <>
       <View style={styles.header}>
         {icon && (
-          <View style={[styles.iconContainer, { backgroundColor: iconColor + '15' }]}>
+          <View style={[styles.iconContainer, { backgroundColor: iconColor + '20' }]}>
             <Ionicons name={icon} size={20} color={iconColor} />
           </View>
         )}
@@ -40,6 +43,25 @@ export function StatCard({
       <Text style={styles.value}>{value}</Text>
       <Text style={styles.title}>{title}</Text>
       {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+    </>
+  );
+
+  if (gradientColors) {
+    return (
+      <LinearGradient
+        colors={gradientColors}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <CardContent />
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <CardContent />
     </View>
   );
 }
@@ -47,10 +69,12 @@ export function StatCard({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     flex: 1,
     minWidth: 100,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -59,9 +83,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -74,10 +98,11 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
+    fontWeight: '500',
   },
   subtitle: {
     fontSize: FontSizes.xs,
-    color: Colors.textLight,
+    color: Colors.textMuted,
     marginTop: 2,
   },
 });

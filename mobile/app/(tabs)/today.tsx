@@ -8,12 +8,13 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { Task, TaskStatus } from '@/types';
 import { TaskCard, LoadingSpinner, ProgressBar } from '@/components';
-import { Colors, Spacing, FontSizes } from '@/constants';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 export default function TodayScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -65,22 +66,33 @@ export default function TodayScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={Colors.gradientDark as [string, string]} style={styles.container}>
       {/* Progress Header */}
       <View style={styles.header}>
-        <View style={styles.progressCard}>
+        <LinearGradient
+          colors={[Colors.surfaceLight, Colors.surface]}
+          style={styles.progressCard}
+        >
           <View style={styles.progressInfo}>
             <Text style={styles.progressTitle}>Today's Progress</Text>
             <Text style={styles.progressSubtitle}>
               {completedCount} of {totalCount} tasks completed
             </Text>
           </View>
-          <View style={styles.progressCircle}>
+          <LinearGradient
+            colors={progress >= 1 ? Colors.gradientSuccess as [string, string] : Colors.gradientPrimary as [string, string]}
+            style={styles.progressCircle}
+          >
             <Text style={styles.progressPercent}>{Math.round(progress * 100)}%</Text>
-          </View>
-        </View>
+          </LinearGradient>
+        </LinearGradient>
         <View style={styles.progressBarContainer}>
-          <ProgressBar progress={progress} showPercentage={false} height={8} />
+          <ProgressBar
+            progress={progress}
+            showPercentage={false}
+            height={8}
+            gradientColors={Colors.gradientSuccess as [string, string]}
+          />
         </View>
       </View>
 
@@ -90,21 +102,37 @@ export default function TodayScreen() {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+          />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={64} color={Colors.textLight} />
+            <LinearGradient
+              colors={[Colors.success + '30', Colors.success + '10']}
+              style={styles.emptyIconContainer}
+            >
+              <Ionicons name="calendar-outline" size={64} color={Colors.success} />
+            </LinearGradient>
             <Text style={styles.emptyTitle}>No tasks for today</Text>
             <Text style={styles.emptySubtitle}>
               Add a task or use the AI planner to generate tasks
             </Text>
             <TouchableOpacity
-              style={styles.addButton}
+              style={styles.addButtonEmpty}
               onPress={() => router.push('/task/new')}
             >
-              <Ionicons name="add" size={20} color="#FFF" />
-              <Text style={styles.addButtonText}>Add Task</Text>
+              <LinearGradient
+                colors={Colors.gradientPrimary as [string, string]}
+                style={styles.addButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Ionicons name="add" size={20} color="#FFF" />
+                <Text style={styles.addButtonText}>Add Task</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         }
@@ -123,19 +151,28 @@ export default function TodayScreen() {
           return (
             <>
               {showPendingHeader && (
-                <Text style={styles.sectionHeader}>
-                  Pending ({pendingTasks.length})
-                </Text>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={[styles.sectionDot, { backgroundColor: Colors.pending }]} />
+                  <Text style={styles.sectionHeader}>
+                    Pending ({pendingTasks.length})
+                  </Text>
+                </View>
               )}
               {showSkippedHeader && (
-                <Text style={[styles.sectionHeader, { color: Colors.error }]}>
-                  Skipped ({skippedTasks.length})
-                </Text>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={[styles.sectionDot, { backgroundColor: Colors.error }]} />
+                  <Text style={[styles.sectionHeader, { color: Colors.error }]}>
+                    Skipped ({skippedTasks.length})
+                  </Text>
+                </View>
               )}
               {showCompletedHeader && (
-                <Text style={[styles.sectionHeader, { color: Colors.success }]}>
-                  Completed ({completedTasks.length})
-                </Text>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={[styles.sectionDot, { backgroundColor: Colors.success }]} />
+                  <Text style={[styles.sectionHeader, { color: Colors.success }]}>
+                    Completed ({completedTasks.length})
+                  </Text>
+                </View>
               )}
               <TaskCard
                 task={item}
@@ -152,16 +189,22 @@ export default function TodayScreen() {
         style={styles.fab}
         onPress={() => router.push('/task/new')}
       >
-        <Ionicons name="add" size={28} color="#FFF" />
+        <LinearGradient
+          colors={Colors.gradientPrimary as [string, string]}
+          style={styles.fabGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="add" size={28} color="#FFF" />
+        </LinearGradient>
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     backgroundColor: Colors.surface,
@@ -174,6 +217,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   progressInfo: {
     flex: 1,
@@ -189,17 +236,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   progressCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primary + '15',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
   },
   progressPercent: {
     fontSize: FontSizes.lg,
     fontWeight: '700',
-    color: Colors.primary,
+    color: '#FFF',
   },
   progressBarContainer: {
     marginTop: Spacing.xs,
@@ -208,16 +254,33 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingBottom: 100,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  sectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: Spacing.sm,
+  },
   sectionHeader: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
     color: Colors.textSecondary,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
   },
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: Spacing.xxl,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
@@ -232,34 +295,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: Spacing.xl,
   },
-  addButton: {
+  addButtonEmpty: {
+    marginTop: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+  },
+  addButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    borderRadius: 8,
-    marginTop: Spacing.lg,
+    gap: Spacing.xs,
   },
   addButtonText: {
     color: '#FFF',
     fontWeight: '600',
-    marginLeft: Spacing.xs,
   },
   fab: {
     position: 'absolute',
     right: Spacing.lg,
     bottom: Spacing.lg,
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabGradient: {
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
 });

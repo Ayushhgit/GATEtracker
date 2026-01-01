@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Spacing, FontSizes } from '@/constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 interface ProgressBarProps {
   progress: number; // 0 to 1
@@ -8,6 +9,8 @@ interface ProgressBarProps {
   showPercentage?: boolean;
   color?: string;
   height?: number;
+  useGradient?: boolean;
+  gradientColors?: [string, string];
 }
 
 export function ProgressBar({
@@ -16,8 +19,11 @@ export function ProgressBar({
   showPercentage = true,
   color = Colors.primary,
   height = 8,
+  useGradient = true,
+  gradientColors,
 }: ProgressBarProps) {
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
+  const defaultGradient: [string, string] = gradientColors || [color, Colors.accent];
 
   return (
     <View style={styles.container}>
@@ -32,16 +38,31 @@ export function ProgressBar({
         </View>
       )}
       <View style={[styles.track, { height }]}>
-        <View
-          style={[
-            styles.fill,
-            {
-              width: `${clampedProgress * 100}%`,
-              backgroundColor: color,
-              height,
-            },
-          ]}
-        />
+        {useGradient ? (
+          <LinearGradient
+            colors={defaultGradient}
+            style={[
+              styles.fill,
+              {
+                width: `${clampedProgress * 100}%`,
+                height,
+              },
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          />
+        ) : (
+          <View
+            style={[
+              styles.fill,
+              {
+                width: `${clampedProgress * 100}%`,
+                backgroundColor: color,
+                height,
+              },
+            ]}
+          />
+        )}
       </View>
     </View>
   );
@@ -68,10 +89,10 @@ const styles = StyleSheet.create({
   },
   track: {
     backgroundColor: Colors.border,
-    borderRadius: 4,
+    borderRadius: BorderRadius.sm,
     overflow: 'hidden',
   },
   fill: {
-    borderRadius: 4,
+    borderRadius: BorderRadius.sm,
   },
 });

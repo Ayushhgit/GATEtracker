@@ -6,19 +6,22 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  View,
 } from 'react-native';
-import { Colors, Spacing, FontSizes } from '@/constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
   size?: 'small' | 'medium' | 'large';
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
   fullWidth?: boolean;
+  icon?: React.ReactNode;
 }
 
 export function Button({
@@ -31,17 +34,27 @@ export function Button({
   style,
   textStyle,
   fullWidth = false,
+  icon,
 }: ButtonProps) {
+  const getGradientColors = (): [string, string] | null => {
+    if (disabled) return null;
+    switch (variant) {
+      case 'primary':
+        return Colors.gradientPrimary as [string, string];
+      case 'secondary':
+        return Colors.gradientSuccess as [string, string];
+      case 'danger':
+        return Colors.gradientWarning as [string, string];
+      default:
+        return null;
+    }
+  };
+
   const getBackgroundColor = () => {
     if (disabled) return Colors.border;
     switch (variant) {
-      case 'primary':
-        return Colors.primary;
-      case 'secondary':
-        return Colors.secondary;
-      case 'danger':
-        return Colors.error;
       case 'outline':
+      case 'ghost':
         return 'transparent';
       default:
         return Colors.primary;
@@ -49,10 +62,12 @@ export function Button({
   };
 
   const getTextColor = () => {
-    if (disabled) return Colors.textSecondary;
+    if (disabled) return Colors.textMuted;
     switch (variant) {
       case 'outline':
         return Colors.primary;
+      case 'ghost':
+        return Colors.textSecondary;
       default:
         return '#FFFFFF';
     }
@@ -80,6 +95,53 @@ export function Button({
     }
   };
 
+  const gradientColors = getGradientColors();
+
+  const ButtonContent = () => (
+    <View style={styles.contentRow}>
+      {loading ? (
+        <ActivityIndicator size="small" color={getTextColor()} />
+      ) : (
+        <>
+          {icon && <View style={styles.iconContainer}>{icon}</View>}
+          <Text
+            style={[
+              styles.text,
+              { color: getTextColor(), fontSize: getTextSize() },
+              textStyle,
+            ]}
+          >
+            {title}
+          </Text>
+        </>
+      )}
+    </View>
+  );
+
+  if (gradientColors && !disabled) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        activeOpacity={0.8}
+        style={[fullWidth && styles.fullWidth, style]}
+      >
+        <LinearGradient
+          colors={gradientColors}
+          style={[
+            styles.button,
+            getSizeStyles(),
+            fullWidth && styles.fullWidth,
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <ButtonContent />
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
       style={[
@@ -97,32 +159,28 @@ export function Button({
       disabled={disabled || loading}
       activeOpacity={0.8}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={getTextColor()} />
-      ) : (
-        <Text
-          style={[
-            styles.text,
-            { color: getTextColor(), fontSize: getTextSize() },
-            textStyle,
-          ]}
-        >
-          {title}
-        </Text>
-      )}
+      <ButtonContent />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 10,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   },
   fullWidth: {
     width: '100%',
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    marginRight: Spacing.sm,
   },
   text: {
     fontWeight: '600',

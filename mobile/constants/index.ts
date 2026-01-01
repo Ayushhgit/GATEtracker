@@ -5,31 +5,63 @@ export const API_BASE_URL = 'http://localhost:8000/api';
 // For production, use your deployed backend URL:
 // export const API_BASE_URL = 'https://your-backend.com/api';
 
-// Colors
+// Dark Theme Colors with Gradients
 export const Colors = {
-  primary: '#1E3A8A',
-  primaryLight: '#3B82F6',
-  secondary: '#10B981',
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  text: '#1E293B',
-  textSecondary: '#64748B',
-  textLight: '#94A3B8',
-  border: '#E2E8F0',
+  // Primary gradient colors
+  primary: '#6366F1',       // Indigo
+  primaryLight: '#818CF8',
+  primaryDark: '#4F46E5',
+
+  // Accent gradient colors
+  accent: '#8B5CF6',        // Purple
+  accentLight: '#A78BFA',
+
+  // Secondary (teal/cyan)
+  secondary: '#14B8A6',
+  secondaryLight: '#2DD4BF',
+
+  // Background colors (dark)
+  background: '#0F0F1A',     // Deep dark blue
+  backgroundLight: '#1A1A2E',
+  surface: '#16162A',        // Card surfaces
+  surfaceLight: '#1E1E38',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#A1A1AA',
+  textLight: '#71717A',
+  textMuted: '#52525B',
+
+  // Border colors
+  border: '#27273D',
+  borderLight: '#3F3F5C',
+
+  // Status colors
   error: '#EF4444',
+  errorLight: '#FCA5A5',
   warning: '#F59E0B',
+  warningLight: '#FCD34D',
   success: '#22C55E',
+  successLight: '#86EFAC',
 
   // Task status colors
   pending: '#F59E0B',
   completed: '#22C55E',
   skipped: '#EF4444',
-  in_progress: '#3B82F6',
+  in_progress: '#6366F1',
 
   // Priority colors
   highPriority: '#EF4444',
   mediumPriority: '#F59E0B',
   lowPriority: '#22C55E',
+
+  // Gradient presets
+  gradientPrimary: ['#6366F1', '#8B5CF6'],
+  gradientAccent: ['#8B5CF6', '#EC4899'],
+  gradientSuccess: ['#22C55E', '#14B8A6'],
+  gradientWarning: ['#F59E0B', '#EF4444'],
+  gradientDark: ['#0F0F1A', '#1A1A2E'],
+  gradientCard: ['#1E1E38', '#16162A'],
 };
 
 // Spacing
@@ -53,7 +85,17 @@ export const FontSizes = {
   xxxl: 32,
 };
 
-// Subject colors (matching backend)
+// Border radius
+export const BorderRadius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  full: 9999,
+};
+
+// Subject colors (brighter for dark theme)
 export const SubjectColors: Record<string, string> = {
   'Data Structures and Algorithms': '#EF4444',
   'Operating Systems': '#F97316',

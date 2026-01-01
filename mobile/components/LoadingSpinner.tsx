@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { Colors, Spacing, FontSizes } from '@/constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 interface LoadingSpinnerProps {
   size?: 'small' | 'large';
@@ -15,13 +16,22 @@ export function LoadingSpinner({
 }: LoadingSpinnerProps) {
   const content = (
     <View style={[styles.container, fullScreen && styles.fullScreen]}>
-      <ActivityIndicator size={size} color={Colors.primary} />
+      <View style={styles.spinnerContainer}>
+        <ActivityIndicator size={size} color={Colors.primary} />
+      </View>
       {message && <Text style={styles.message}>{message}</Text>}
     </View>
   );
 
   if (fullScreen) {
-    return <View style={styles.fullScreenWrapper}>{content}</View>;
+    return (
+      <LinearGradient
+        colors={Colors.gradientDark as [string, string]}
+        style={styles.fullScreenWrapper}
+      >
+        {content}
+      </LinearGradient>
+    );
   }
 
   return content;
@@ -35,14 +45,24 @@ const styles = StyleSheet.create({
   },
   fullScreenWrapper: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   fullScreen: {
     flex: 1,
+  },
+  spinnerContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   message: {
     marginTop: Spacing.md,
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
+    fontWeight: '500',
   },
 });

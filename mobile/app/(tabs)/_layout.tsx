@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants';
 
 export default function TabsLayout() {
@@ -10,33 +12,50 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textSecondary,
+        tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
+          borderTopWidth: 1,
           paddingTop: 8,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          height: 60 + (insets.bottom > 0 ? insets.bottom : 8),
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+          height: 65 + (insets.bottom > 0 ? insets.bottom : 12),
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          marginBottom: 0,
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
         },
         headerStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: Colors.background,
+          shadowColor: 'transparent',
+          elevation: 0,
         },
         headerTintColor: Colors.text,
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: '700',
+          fontSize: 20,
         },
+        headerBackground: () => (
+          <LinearGradient
+            colors={[Colors.backgroundLight, Colors.background]}
+            style={{ flex: 1 }}
+          />
+        ),
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? {
+              backgroundColor: color + '20',
+              padding: 8,
+              borderRadius: 12,
+            } : { padding: 8 }}>
+              <Ionicons name={focused ? "home" : "home-outline"} size={22} color={color} />
+            </View>
           ),
         }}
       />
@@ -44,8 +63,14 @@ export default function TabsLayout() {
         name="today"
         options={{
           title: 'Today',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="today" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? {
+              backgroundColor: color + '20',
+              padding: 8,
+              borderRadius: 12,
+            } : { padding: 8 }}>
+              <Ionicons name={focused ? "today" : "today-outline"} size={22} color={color} />
+            </View>
           ),
         }}
       />
@@ -53,8 +78,14 @@ export default function TabsLayout() {
         name="week"
         options={{
           title: 'Week',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? {
+              backgroundColor: color + '20',
+              padding: 8,
+              borderRadius: 12,
+            } : { padding: 8 }}>
+              <Ionicons name={focused ? "calendar" : "calendar-outline"} size={22} color={color} />
+            </View>
           ),
         }}
       />
@@ -62,8 +93,14 @@ export default function TabsLayout() {
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? {
+              backgroundColor: color + '20',
+              padding: 8,
+              borderRadius: 12,
+            } : { padding: 8 }}>
+              <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={22} color={color} />
+            </View>
           ),
         }}
       />
@@ -71,8 +108,14 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: 'Mentor',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? {
+              backgroundColor: color + '20',
+              padding: 8,
+              borderRadius: 12,
+            } : { padding: 8 }}>
+              <Ionicons name={focused ? "chatbubbles" : "chatbubbles-outline"} size={22} color={color} />
+            </View>
           ),
         }}
       />

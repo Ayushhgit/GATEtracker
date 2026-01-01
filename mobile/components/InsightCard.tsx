@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Insight } from '@/types';
-import { Colors, Spacing, FontSizes } from '@/constants';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants';
 
 interface InsightCardProps {
   insight: Insight;
@@ -45,41 +46,63 @@ export function InsightCard({ insight, onPress, onDismiss }: InsightCardProps) {
     }
   };
 
-  const getPriorityBorder = () => {
-    if (insight.priority === 1) {
-      return { borderLeftColor: Colors.error, borderLeftWidth: 4 };
-    }
-    return {};
+  const getGradientColors = (): [string, string] => {
+    const color = getTypeColor();
+    return [color + '30', color + '10'];
   };
 
   return (
     <TouchableOpacity
-      style={[styles.container, getPriorityBorder()]}
+      style={styles.container}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
     >
+      {/* Priority indicator */}
+      {insight.priority === 1 && (
+        <LinearGradient
+          colors={[Colors.error, Colors.error + '60']}
+          style={styles.priorityBar}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
+      )}
+
       <View style={styles.header}>
-        <View style={[styles.iconContainer, { backgroundColor: getTypeColor() + '15' }]}>
+        <LinearGradient
+          colors={getGradientColors()}
+          style={styles.iconContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
           <Ionicons name={getTypeIcon()} size={20} color={getTypeColor()} />
-        </View>
+        </LinearGradient>
         <View style={styles.titleContainer}>
           <Text style={styles.title} numberOfLines={1}>
             {insight.title}
           </Text>
-          <Text style={styles.type}>
+          <Text style={[styles.type, { color: getTypeColor() }]}>
             {insight.insight_type.replace('_', ' ').toUpperCase()}
           </Text>
         </View>
         {onDismiss && (
           <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
-            <Ionicons name="close" size={20} color={Colors.textSecondary} />
+            <Ionicons name="close" size={20} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
       <Text style={styles.content} numberOfLines={3}>
         {insight.content}
       </Text>
-      {!insight.is_read && <View style={styles.unreadDot} />}
+      {!insight.is_read && (
+        <View style={styles.unreadDot}>
+          <LinearGradient
+            colors={Colors.gradientPrimary as [string, string]}
+            style={styles.unreadDotInner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -87,10 +110,20 @@ export function InsightCard({ insight, onPress, onDismiss }: InsightCardProps) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  priorityBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
   },
   header: {
     flexDirection: 'row',
@@ -98,9 +131,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.sm,
@@ -115,8 +148,8 @@ const styles = StyleSheet.create({
   },
   type: {
     fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
     marginTop: 2,
+    fontWeight: '600',
   },
   dismissButton: {
     padding: Spacing.xs,
@@ -130,9 +163,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.md,
     right: Spacing.md,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  unreadDotInner: {
+    flex: 1,
   },
 });
