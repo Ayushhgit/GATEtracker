@@ -104,13 +104,25 @@ GATE CSE SUBJECTS (use these exact names):
 - Programming and Data Structures
 - Aptitude
 
+TASK NAMING GUIDELINES:
+- Title should be specific and actionable (e.g., "Study Binary Search Trees - Insertion & Deletion Operations" NOT just "BST")
+- Include the specific concept/topic in the title
+- Description should explain:
+  * What exactly to study/practice
+  * Key concepts to focus on
+  * Recommended resources if applicable
+  * Expected learning outcomes
+- Topic field should be the specific subtopic (e.g., "Binary Search Trees" under "Data Structures and Algorithms")
+
 INSTRUCTIONS:
 1. Identify all subjects and topics mentioned
 2. Create a logical study schedule spreading tasks across the date range
-3. Include revision tasks (mark is_revision: true)
+3. Include revision tasks (mark is_revision: true) - schedule revisions 3-7 days after initial study
 4. Estimate realistic study durations (30-120 minutes per task)
 5. Prioritize foundational topics before advanced ones
 6. Include practice problems and previous year questions
+7. Make task titles descriptive and specific
+8. Add detailed descriptions explaining what to cover
 
 OUTPUT FORMAT (JSON):
 {{
@@ -121,9 +133,9 @@ OUTPUT FORMAT (JSON):
     ],
     "tasks": [
         {{
-            "title": "Task title",
-            "description": "Detailed description",
-            "topic": "Specific topic",
+            "title": "Study [Topic] - [Specific Concepts] | [Subject Short Name]",
+            "description": "Cover the following concepts:\\n- Concept 1: explanation\\n- Concept 2: explanation\\n\\nKey points to remember:\\n- Point 1\\n- Point 2\\n\\nPractice: Solve 5-10 problems on this topic",
+            "topic": "Specific topic name",
             "subject": "Subject name from list above",
             "scheduled_date": "YYYY-MM-DD",
             "estimated_minutes": 60,
@@ -136,6 +148,13 @@ OUTPUT FORMAT (JSON):
         "Week 2": ["Topic 3", "Topic 4"]
     }}
 }}
+
+TITLE EXAMPLES:
+- "Study Arrays - Time Complexity & Space Analysis | DSA"
+- "Practice Linked List Problems - Reversal & Cycle Detection | DSA"
+- "Learn Process Scheduling - FCFS, SJF, Priority | OS"
+- "Revise SQL Joins - Inner, Outer, Cross Joins | DBMS"
+- "Solve PYQs - Graph Algorithms (2018-2023) | DSA"
 
 Generate at least 50 tasks spread across the date range. Be comprehensive and practical.
 Return ONLY valid JSON, no other text."""
@@ -162,11 +181,15 @@ DIFFICULTY: {difficulty_level}
 
 Generate 2-4 focused tasks that can be completed in the given time.
 
+TASK NAMING GUIDELINES:
+- Title should be specific (e.g., "Practice DFS/BFS Traversal Problems" not just "Graph Practice")
+- Description should include what to cover, key concepts, and practice suggestions
+
 OUTPUT FORMAT (JSON array):
 [
     {{
-        "title": "Clear, actionable task title",
-        "description": "What to study/practice",
+        "title": "Specific, actionable task title with topic details",
+        "description": "Detailed description of what to study/practice, including:\\n- Key concepts\\n- Practice suggestions\\n- Expected outcomes",
         "estimated_minutes": 30,
         "priority": 2,
         "task_type": "study|practice|revision|pyq"
@@ -272,7 +295,15 @@ Be specific, data-driven, and constructive. Return ONLY valid JSON array."""
     ) -> Tuple[str, Optional[Dict]]:
         """GATE mentor chatbot with context awareness."""
 
-        system_prompt = """You are a senior GATE CSE mentor with 20+ years of experience. Your role:
+        # Format task list for context
+        tasks_list = context.get('tasks_list', [])
+        tasks_context = ""
+        if tasks_list:
+            tasks_context = "\n\nCURRENT TASKS (ID - Title - Subject - Status - Date):\n"
+            for t in tasks_list[:20]:  # Limit to 20 tasks
+                tasks_context += f"- ID:{t['id']} | {t['title']} | {t.get('subject', 'N/A')} | {t['status']} | {t['date']}\n"
+
+        system_prompt = f"""You are a senior GATE CSE mentor with 20+ years of experience. Your role:
 
 1. PERSONALITY:
 - Be strict but supportive
@@ -287,6 +318,8 @@ You can help with:
 - Suggesting study strategies
 - Analyzing why the student is falling behind
 - Creating or modifying study plans
+- Deleting tasks when asked
+- Editing tasks when asked
 - Providing motivation and reality checks
 
 3. CONTEXT AWARENESS:
@@ -295,18 +328,39 @@ You have access to the student's:
 - Weekly progress
 - Subject-wise performance
 - Recent insights
+- Full task list with IDs
+{tasks_context}
 
 4. ACTIONS:
-If the user asks you to create tasks or modify their schedule, respond with a JSON block like:
+You can perform these actions by including a JSON block in your response:
+
+To CREATE new tasks:
 ```action
-{"action": "create_tasks", "tasks": [...]}
-```
-or
-```action
-{"action": "reschedule", "task_ids": [...], "reason": "..."}
+{{"action": "create_tasks", "tasks": [
+    {{"title": "Specific task title", "description": "What to cover", "topic": "Topic", "subject": "Subject Name", "scheduled_date": "YYYY-MM-DD", "estimated_minutes": 60, "priority": 2}}
+]}}
 ```
 
-Otherwise, just provide helpful mentoring advice.
+To DELETE tasks (when user asks to delete/remove a task):
+```action
+{{"action": "delete_tasks", "task_ids": [1, 2, 3], "reason": "User requested deletion"}}
+```
+
+To EDIT a task:
+```action
+{{"action": "edit_task", "task_id": 123, "updates": {{"title": "New title", "scheduled_date": "YYYY-MM-DD"}}}}
+```
+
+To RESCHEDULE tasks:
+```action
+{{"action": "reschedule", "task_ids": [1, 2], "new_date": "YYYY-MM-DD", "reason": "Rescheduling as requested"}}
+```
+
+IMPORTANT GUIDELINES FOR ACTIONS:
+- When user says "delete task about X" or "remove the Y task", find the matching task ID from the task list and use delete_tasks action
+- When user says "delete all tasks for today", find all tasks for today and delete them
+- When deleting, always confirm what you're deleting in your response
+- After any action, briefly explain what you did
 
 IMPORTANT: Be concise. This is a mobile app - responses should be readable on a phone screen."""
 

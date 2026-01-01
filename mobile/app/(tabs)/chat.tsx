@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,16 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
-import { ChatMessage, ChatSession } from '@/types';
+import { ChatMessage } from '@/types';
 import { Colors, Spacing, FontSizes } from '@/constants';
 
 interface Message extends ChatMessage {
   id: string;
   isLoading?: boolean;
+  actionTaken?: string;
 }
 
 export default function ChatScreen() {
@@ -27,13 +29,14 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
 
-  // Quick prompts
+  // Quick prompts - including delete examples
   const quickPrompts = [
     "What should I study today?",
-    "Why am I falling behind?",
+    "Delete all pending tasks for today",
+    "Show my tasks",
     "Replan my week",
-    "Generate insights",
   ];
 
   const sendMessage = async (text: string) => {
@@ -71,12 +74,23 @@ export default function ChatScreen() {
             role: 'assistant',
             content: response.response,
             timestamp: new Date().toISOString(),
+            actionTaken: response.action_taken || undefined,
           },
         ];
       });
 
+      // Show action notification
       if (response.action_taken) {
-        Alert.alert('Action Taken', response.action_taken);
+        const isDelete = response.action_taken.toLowerCase().includes('deleted');
+        const isCreate = response.action_taken.toLowerCase().includes('created');
+        const isUpdate = response.action_taken.toLowerCase().includes('updated') ||
+                        response.action_taken.toLowerCase().includes('rescheduled');
+
+        Alert.alert(
+          isDelete ? 'Tasks Deleted' : isCreate ? 'Tasks Created' : isUpdate ? 'Tasks Updated' : 'Action Completed',
+          response.action_taken,
+          [{ text: 'OK' }]
+        );
       }
     } catch (error: any) {
       console.error('Failed to send message:', error);
@@ -140,6 +154,18 @@ export default function ChatScreen() {
         >
           {item.content}
         </Text>
+        {item.actionTaken && (
+          <View style={styles.actionBadge}>
+            <Ionicons
+              name={item.actionTaken.includes('Deleted') ? 'trash' :
+                    item.actionTaken.includes('Created') ? 'add-circle' :
+                    'checkmark-circle'}
+              size={14}
+              color={Colors.success}
+            />
+            <Text style={styles.actionBadgeText}>{item.actionTaken}</Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -158,7 +184,7 @@ export default function ChatScreen() {
           </View>
           <View>
             <Text style={styles.headerTitle}>GATE Mentor</Text>
-            <Text style={styles.headerSubtitle}>20+ years experience</Text>
+            <Text style={styles.headerSubtitle}>Can create, edit & delete tasks</Text>
           </View>
         </View>
         <TouchableOpacity onPress={startNewChat} style={styles.newChatButton}>
@@ -172,7 +198,7 @@ export default function ChatScreen() {
           <Ionicons name="chatbubbles-outline" size={64} color={Colors.textLight} />
           <Text style={styles.emptyTitle}>Chat with your GATE Mentor</Text>
           <Text style={styles.emptySubtitle}>
-            Ask questions, get study advice, or request schedule changes
+            Ask questions, create tasks, or delete existing ones
           </Text>
 
           <View style={styles.quickPrompts}>
@@ -187,6 +213,14 @@ export default function ChatScreen() {
                 <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
               </TouchableOpacity>
             ))}
+          </View>
+
+          <View style={styles.helpSection}>
+            <Text style={styles.helpTitle}>You can say things like:</Text>
+            <Text style={styles.helpText}>• "Delete the DSA task for tomorrow"</Text>
+            <Text style={styles.helpText}>• "Remove all OS tasks this week"</Text>
+            <Text style={styles.helpText}>• "Create a new task for DBMS revision"</Text>
+            <Text style={styles.helpText}>• "Reschedule today's tasks to next week"</Text>
           </View>
         </View>
       ) : (
@@ -205,25 +239,38 @@ export default function ChatScreen() {
       {/* Quick Actions when chatting */}
       {messages.length > 0 && (
         <View style={styles.quickActions}>
-          {quickPrompts.slice(0, 2).map((prompt, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.quickAction}
-              onPress={() => sendMessage(prompt)}
-            >
-              <Text style={styles.quickActionText} numberOfLines={1}>
-                {prompt}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity
+            style={styles.quickAction}
+            onPress={() => sendMessage("Show my tasks for today")}
+          >
+            <Text style={styles.quickActionText} numberOfLines={1}>
+              Show tasks
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickAction}
+            onPress={() => sendMessage("What should I focus on?")}
+          >
+            <Text style={styles.quickActionText} numberOfLines={1}>
+              Focus advice
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickAction, styles.quickActionDanger]}
+            onPress={() => sendMessage("Delete completed tasks")}
+          >
+            <Text style={[styles.quickActionText, styles.quickActionDangerText]} numberOfLines={1}>
+              Clean up
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
       {/* Input */}
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
         <TextInput
           style={styles.input}
-          placeholder="Ask your mentor..."
+          placeholder="Ask your mentor or request changes..."
           placeholderTextColor={Colors.textLight}
           value={inputText}
           onChangeText={setInputText}
@@ -308,7 +355,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   quickPrompts: {
-    marginTop: Spacing.xl,
+    marginTop: Spacing.lg,
     width: '100%',
   },
   quickPromptsTitle: {
@@ -330,6 +377,24 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     color: Colors.text,
     flex: 1,
+  },
+  helpSection: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: 10,
+    width: '100%',
+  },
+  helpTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginBottom: Spacing.sm,
+  },
+  helpText: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginBottom: 4,
   },
   messageList: {
     padding: Spacing.md,
@@ -375,6 +440,20 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginLeft: Spacing.sm,
   },
+  actionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  actionBadgeText: {
+    fontSize: FontSizes.xs,
+    color: Colors.success,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
   quickActions: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.md,
@@ -391,10 +470,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginHorizontal: Spacing.xs,
   },
+  quickActionDanger: {
+    backgroundColor: Colors.error + '15',
+  },
   quickActionText: {
     fontSize: FontSizes.xs,
     color: Colors.primary,
     textAlign: 'center',
+  },
+  quickActionDangerText: {
+    color: Colors.error,
   },
   inputContainer: {
     flexDirection: 'row',

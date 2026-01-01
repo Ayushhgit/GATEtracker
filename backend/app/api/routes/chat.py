@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, or_
+from sqlalchemy.orm import selectinload
 from typing import List
 from datetime import date, datetime, timedelta
 
@@ -111,6 +112,30 @@ async def get_user_context(user_id: int, db: AsyncSession) -> dict:
     )
     insights = [row[0] for row in result.all()]
 
+    # Get recent tasks (today and upcoming 7 days) for context
+    result = await db.execute(
+        select(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.scheduled_date >= today - timedelta(days=1),
+                Task.scheduled_date <= today + timedelta(days=7)
+            )
+        ).options(selectinload(Task.subject)).order_by(Task.scheduled_date, Task.priority)
+    )
+    tasks = result.scalars().all()
+
+    tasks_list = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "subject": t.subject.short_name if t.subject else "N/A",
+            "status": t.status.value,
+            "date": t.scheduled_date.isoformat(),
+            "source": t.source.value
+        }
+        for t in tasks
+    ]
+
     return {
         "today_tasks_count": today_total,
         "today_completed": today_completed,
@@ -118,7 +143,8 @@ async def get_user_context(user_id: int, db: AsyncSession) -> dict:
         "streak": streak,
         "weak_subjects": weak_subjects[:3] if weak_subjects else ["None identified"],
         "strong_subjects": strong_subjects[:3] if strong_subjects else ["None identified"],
-        "recent_insights": "; ".join(insights) if insights else "No recent insights"
+        "recent_insights": "; ".join(insights) if insights else "No recent insights",
+        "tasks_list": tasks_list
     }
 
 
@@ -174,10 +200,14 @@ async def send_message(
 
     # Handle actions
     tasks_created = None
+    tasks_deleted = None
+    tasks_edited = None
     action_taken = None
 
     if action:
-        if action.get("action") == "create_tasks":
+        action_type = action.get("action")
+
+        if action_type == "create_tasks":
             tasks_data = action.get("tasks", [])
             created = []
             for task_data in tasks_data:
@@ -210,11 +240,97 @@ async def send_message(
 
             await db.commit()
             tasks_created = created
-            action_taken = f"Created {len(created)} tasks"
+            action_taken = f"Created {len(created)} task(s)"
 
-        elif action.get("action") == "reschedule":
-            # Handle reschedule action
-            action_taken = "Tasks rescheduled"
+        elif action_type == "delete_tasks":
+            task_ids = action.get("task_ids", [])
+            deleted_count = 0
+            deleted_titles = []
+
+            for task_id in task_ids:
+                result = await db.execute(
+                    select(Task).where(
+                        and_(Task.id == task_id, Task.user_id == user_id)
+                    )
+                )
+                task = result.scalar_one_or_none()
+                if task:
+                    deleted_titles.append(task.title)
+                    await db.delete(task)
+                    deleted_count += 1
+
+            await db.commit()
+            action_taken = f"Deleted {deleted_count} task(s): {', '.join(deleted_titles[:3])}"
+            if len(deleted_titles) > 3:
+                action_taken += f" and {len(deleted_titles) - 3} more"
+
+        elif action_type == "edit_task":
+            task_id = action.get("task_id")
+            updates = action.get("updates", {})
+
+            if task_id:
+                result = await db.execute(
+                    select(Task).where(
+                        and_(Task.id == task_id, Task.user_id == user_id)
+                    )
+                )
+                task = result.scalar_one_or_none()
+
+                if task:
+                    # Apply updates
+                    if "title" in updates:
+                        task.title = updates["title"]
+                    if "description" in updates:
+                        task.description = updates["description"]
+                    if "topic" in updates:
+                        task.topic = updates["topic"]
+                    if "scheduled_date" in updates:
+                        try:
+                            task.scheduled_date = date.fromisoformat(updates["scheduled_date"])
+                        except:
+                            pass
+                    if "estimated_minutes" in updates:
+                        task.estimated_minutes = updates["estimated_minutes"]
+                    if "priority" in updates:
+                        task.priority = updates["priority"]
+                    if "status" in updates:
+                        status_map = {
+                            "pending": TaskStatus.PENDING,
+                            "completed": TaskStatus.COMPLETED,
+                            "skipped": TaskStatus.SKIPPED,
+                            "in_progress": TaskStatus.IN_PROGRESS
+                        }
+                        if updates["status"] in status_map:
+                            task.status = status_map[updates["status"]]
+
+                    await db.commit()
+                    action_taken = f"Updated task: {task.title}"
+
+        elif action_type == "reschedule":
+            task_ids = action.get("task_ids", [])
+            new_date_str = action.get("new_date")
+            rescheduled_count = 0
+
+            if new_date_str:
+                try:
+                    new_date = date.fromisoformat(new_date_str)
+
+                    for task_id in task_ids:
+                        result = await db.execute(
+                            select(Task).where(
+                                and_(Task.id == task_id, Task.user_id == user_id)
+                            )
+                        )
+                        task = result.scalar_one_or_none()
+                        if task:
+                            task.scheduled_date = new_date
+                            task.status = TaskStatus.PENDING
+                            rescheduled_count += 1
+
+                    await db.commit()
+                    action_taken = f"Rescheduled {rescheduled_count} task(s) to {new_date_str}"
+                except:
+                    action_taken = "Failed to reschedule tasks"
 
     # Add assistant response to history
     messages.append({
