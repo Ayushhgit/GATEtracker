@@ -332,35 +332,48 @@ You have access to the student's:
 {tasks_context}
 
 4. ACTIONS:
-You can perform these actions by including a JSON block in your response:
+You can perform actions by including a special command block in your response. Use this exact format:
 
-To CREATE new tasks:
-```action
-{{"action": "create_tasks", "tasks": [
-    {{"title": "Specific task title", "description": "What to cover", "topic": "Topic", "subject": "Subject Name", "scheduled_date": "YYYY-MM-DD", "estimated_minutes": 60, "priority": 2}}
-]}}
-```
+To CREATE new tasks, include this in your response:
+<<ACTION_CREATE_TASKS>>
+title: Specific task title
+description: What to cover
+topic: Topic name
+subject: Subject Name (from GATE subjects list)
+date: YYYY-MM-DD
+minutes: 60
+priority: 2
+<<END_ACTION>>
+
+You can create multiple tasks by repeating the block.
 
 To DELETE tasks (when user asks to delete/remove a task):
-```action
-{{"action": "delete_tasks", "task_ids": [1, 2, 3], "reason": "User requested deletion"}}
-```
+<<ACTION_DELETE_TASKS>>
+ids: 1, 2, 3
+reason: User requested deletion
+<<END_ACTION>>
 
 To EDIT a task:
-```action
-{{"action": "edit_task", "task_id": 123, "updates": {{"title": "New title", "scheduled_date": "YYYY-MM-DD"}}}}
-```
+<<ACTION_EDIT_TASK>>
+id: 123
+title: New title (optional)
+date: YYYY-MM-DD (optional)
+description: New description (optional)
+<<END_ACTION>>
 
 To RESCHEDULE tasks:
-```action
-{{"action": "reschedule", "task_ids": [1, 2], "new_date": "YYYY-MM-DD", "reason": "Rescheduling as requested"}}
-```
+<<ACTION_RESCHEDULE>>
+ids: 1, 2
+new_date: YYYY-MM-DD
+reason: Rescheduling as requested
+<<END_ACTION>>
 
 IMPORTANT GUIDELINES FOR ACTIONS:
-- When user says "delete task about X" or "remove the Y task", find the matching task ID from the task list and use delete_tasks action
+- When user says "delete task about X" or "remove the Y task", find the matching task ID from the task list and use DELETE action
 - When user says "delete all tasks for today", find all tasks for today and delete them
 - When deleting, always confirm what you're deleting in your response
 - After any action, briefly explain what you did
+- Do NOT use JSON format for actions - use the <<ACTION_...>> format shown above
 
 IMPORTANT: Be concise. This is a mobile app - responses should be readable on a phone screen."""
 
@@ -390,18 +403,155 @@ STUDENT'S CURRENT CONTEXT:
 
         response = self._call_llm(messages, temperature=0.7)
 
-        # Check for action blocks
-        action = None
-        action_match = re.search(r'```action\s*([\s\S]*?)```', response)
+        # Check for action blocks using new format
+        action = self._parse_action_blocks(response)
+
+        # Remove action blocks from response
+        response = re.sub(r'<<ACTION_\w+>>[\s\S]*?<<END_ACTION>>', '', response).strip()
+        # Also clean up any stray JSON-style action blocks that might slip through
+        response = re.sub(r'```action\s*[\s\S]*?```', '', response).strip()
+        response = re.sub(r'```json\s*\{["\']?action["\']?\s*:[\s\S]*?```', '', response).strip()
+
+        return response, action
+
+    def _parse_action_blocks(self, text: str) -> Optional[Dict]:
+        """Parse action blocks from LLM response."""
+
+        # Check for CREATE_TASKS action
+        create_match = re.search(r'<<ACTION_CREATE_TASKS>>([\s\S]*?)<<END_ACTION>>', text)
+        if create_match:
+            content = create_match.group(1).strip()
+            tasks = []
+
+            # Parse each task block
+            lines = content.split('\n')
+            current_task = {}
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    if current_task:
+                        tasks.append(current_task)
+                        current_task = {}
+                    continue
+
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip().lower()
+                    value = value.strip()
+
+                    if key == 'title':
+                        current_task['title'] = value
+                    elif key == 'description':
+                        current_task['description'] = value
+                    elif key == 'topic':
+                        current_task['topic'] = value
+                    elif key == 'subject':
+                        current_task['subject'] = value
+                    elif key == 'date':
+                        current_task['scheduled_date'] = value
+                    elif key == 'minutes':
+                        try:
+                            current_task['estimated_minutes'] = int(value)
+                        except:
+                            current_task['estimated_minutes'] = 60
+                    elif key == 'priority':
+                        try:
+                            current_task['priority'] = int(value)
+                        except:
+                            current_task['priority'] = 2
+
+            if current_task:
+                tasks.append(current_task)
+
+            if tasks:
+                return {"action": "create_tasks", "tasks": tasks}
+
+        # Check for DELETE_TASKS action
+        delete_match = re.search(r'<<ACTION_DELETE_TASKS>>([\s\S]*?)<<END_ACTION>>', text)
+        if delete_match:
+            content = delete_match.group(1).strip()
+            task_ids = []
+            reason = ""
+
+            for line in content.split('\n'):
+                line = line.strip()
+                if line.startswith('ids:'):
+                    ids_str = line.replace('ids:', '').strip()
+                    for id_str in ids_str.replace(',', ' ').split():
+                        try:
+                            task_ids.append(int(id_str.strip()))
+                        except:
+                            pass
+                elif line.startswith('reason:'):
+                    reason = line.replace('reason:', '').strip()
+
+            if task_ids:
+                return {"action": "delete_tasks", "task_ids": task_ids, "reason": reason}
+
+        # Check for EDIT_TASK action
+        edit_match = re.search(r'<<ACTION_EDIT_TASK>>([\s\S]*?)<<END_ACTION>>', text)
+        if edit_match:
+            content = edit_match.group(1).strip()
+            task_id = None
+            updates = {}
+
+            for line in content.split('\n'):
+                line = line.strip()
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip().lower()
+                    value = value.strip()
+
+                    if key == 'id':
+                        try:
+                            task_id = int(value)
+                        except:
+                            pass
+                    elif key == 'title':
+                        updates['title'] = value
+                    elif key == 'date':
+                        updates['scheduled_date'] = value
+                    elif key == 'description':
+                        updates['description'] = value
+
+            if task_id and updates:
+                return {"action": "edit_task", "task_id": task_id, "updates": updates}
+
+        # Check for RESCHEDULE action
+        reschedule_match = re.search(r'<<ACTION_RESCHEDULE>>([\s\S]*?)<<END_ACTION>>', text)
+        if reschedule_match:
+            content = reschedule_match.group(1).strip()
+            task_ids = []
+            new_date = ""
+            reason = ""
+
+            for line in content.split('\n'):
+                line = line.strip()
+                if line.startswith('ids:'):
+                    ids_str = line.replace('ids:', '').strip()
+                    for id_str in ids_str.replace(',', ' ').split():
+                        try:
+                            task_ids.append(int(id_str.strip()))
+                        except:
+                            pass
+                elif line.startswith('new_date:'):
+                    new_date = line.replace('new_date:', '').strip()
+                elif line.startswith('reason:'):
+                    reason = line.replace('reason:', '').strip()
+
+            if task_ids and new_date:
+                return {"action": "reschedule", "task_ids": task_ids, "new_date": new_date, "reason": reason}
+
+        # Fallback: check for old JSON format (for backward compatibility)
+        action_match = re.search(r'```action\s*([\s\S]*?)```', text)
         if action_match:
             try:
-                action = json.loads(action_match.group(1))
-                # Remove action block from response
-                response = re.sub(r'```action\s*[\s\S]*?```', '', response).strip()
+                return json.loads(action_match.group(1))
             except json.JSONDecodeError:
                 pass
 
-        return response, action
+        return None
 
     async def suggest_today_plan(
         self,
