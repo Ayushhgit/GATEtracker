@@ -12,11 +12,18 @@ logger = logging.getLogger(__name__)
 
 class LLMService:
     def __init__(self):
-        self.client = Groq(api_key=settings.GROQ_API_KEY)
+        if not settings.GROQ_API_KEY:
+            logger.warning("GROQ_API_KEY not set - LLM features will not work")
+            self.client = None
+        else:
+            self.client = Groq(api_key=settings.GROQ_API_KEY)
         self.model = settings.GROQ_MODEL
 
     def _call_llm(self, messages: List[Dict], temperature: float = 0.7, max_retries: int = 3) -> str:
         """Call LLM with retry logic."""
+        if not self.client:
+            raise ValueError("LLM client not initialized - GROQ_API_KEY may be missing")
+
         last_error = None
 
         for attempt in range(max_retries):
@@ -463,12 +470,12 @@ STUDENT'S CURRENT CONTEXT:
                     elif key == 'minutes':
                         try:
                             current_task['estimated_minutes'] = int(value)
-                        except:
+                        except (ValueError, TypeError):
                             current_task['estimated_minutes'] = 60
                     elif key == 'priority':
                         try:
                             current_task['priority'] = int(value)
-                        except:
+                        except (ValueError, TypeError):
                             current_task['priority'] = 2
 
             if current_task:
@@ -491,7 +498,7 @@ STUDENT'S CURRENT CONTEXT:
                     for id_str in ids_str.replace(',', ' ').split():
                         try:
                             task_ids.append(int(id_str.strip()))
-                        except:
+                        except (ValueError, TypeError):
                             pass
                 elif line.startswith('reason:'):
                     reason = line.replace('reason:', '').strip()
@@ -516,7 +523,7 @@ STUDENT'S CURRENT CONTEXT:
                     if key == 'id':
                         try:
                             task_id = int(value)
-                        except:
+                        except (ValueError, TypeError):
                             pass
                     elif key == 'title':
                         updates['title'] = value
@@ -543,7 +550,7 @@ STUDENT'S CURRENT CONTEXT:
                     for id_str in ids_str.replace(',', ' ').split():
                         try:
                             task_ids.append(int(id_str.strip()))
-                        except:
+                        except (ValueError, TypeError):
                             pass
                 elif line.startswith('new_date:'):
                     new_date = line.replace('new_date:', '').strip()

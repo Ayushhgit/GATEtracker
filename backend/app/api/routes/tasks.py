@@ -329,9 +329,15 @@ async def reschedule_tasks(
     available_dates = [today + timedelta(days=i) for i in range(1, 14)]
 
     # Call LLM for intelligent rescheduling
-    reschedule_plan = await llm_service.reschedule_tasks(
-        skipped_data, upcoming_data, available_dates
-    )
+    try:
+        reschedule_plan = await llm_service.reschedule_tasks(
+            skipped_data, upcoming_data, available_dates
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate reschedule plan: {str(e)}"
+        )
 
     # Apply reschedule
     rescheduled = []
@@ -342,13 +348,17 @@ async def reschedule_tasks(
         if task_id and new_date_str:
             for task in tasks_to_reschedule:
                 if task.id == task_id:
-                    task.scheduled_date = date.fromisoformat(new_date_str)
-                    task.status = TaskStatus.PENDING
-                    rescheduled.append({
-                        "task_id": task_id,
-                        "new_date": new_date_str,
-                        "reason": item.get("reason", "")
-                    })
+                    try:
+                        task.scheduled_date = date.fromisoformat(new_date_str)
+                        task.status = TaskStatus.PENDING
+                        rescheduled.append({
+                            "task_id": task_id,
+                            "new_date": new_date_str,
+                            "reason": item.get("reason", "")
+                        })
+                    except (ValueError, TypeError):
+                        # Skip invalid dates
+                        pass
                     break
 
     await db.commit()

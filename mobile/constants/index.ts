@@ -1,5 +1,7 @@
 // API Configuration
-export const API_BASE_URL = 'http://10.162.218.37:8000/api';
+// For development: Use your local IP or localhost
+// For production: Set via environment variable or change to production URL
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 // Professional Dark Theme Color Palette
 export const Colors = {
