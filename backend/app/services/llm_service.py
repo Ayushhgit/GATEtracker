@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from groq import Groq
@@ -14,21 +15,47 @@ class LLMService:
         self.client = Groq(api_key=settings.GROQ_API_KEY)
         self.model = settings.GROQ_MODEL
 
-    def _call_llm(self, messages: List[Dict], temperature: float = 0.7) -> str:
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=4096,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"LLM call failed: {e}")
-            raise
+    def _call_llm(self, messages: List[Dict], temperature: float = 0.7, max_retries: int = 3) -> str:
+        """Call LLM with retry logic."""
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=4096,
+                )
+                content = response.choices[0].message.content
+
+                # Check for empty response
+                if not content or content.strip() == "":
+                    logger.warning(f"Empty response from LLM (attempt {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        time.sleep(1 * (attempt + 1))  # Backoff
+                        continue
+                    raise ValueError("LLM returned empty response")
+
+                return content
+
+            except Exception as e:
+                last_error = e
+                logger.error(f"LLM call failed (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1 * (attempt + 1))  # Backoff
+                    continue
+                raise
+
+        raise last_error or ValueError("LLM call failed after retries")
 
     def _extract_json(self, text: str) -> Dict:
         """Extract JSON from LLM response, handling markdown code blocks."""
+        # Handle empty or None response
+        if not text or text.strip() == "":
+            logger.error("Empty text provided to _extract_json")
+            raise ValueError("Empty response from LLM")
+
         # Try to find JSON in code blocks first
         json_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
         if json_match:
@@ -36,6 +63,10 @@ class LLMService:
 
         # Clean up the text
         text = text.strip()
+
+        # Handle empty after stripping
+        if not text:
+            raise ValueError("Empty JSON content after parsing")
 
         # Try to parse
         try:
@@ -80,88 +111,59 @@ class LLMService:
         if not start_date:
             start_date = date.today()
         if not end_date:
-            end_date = start_date + timedelta(days=365)
+            end_date = start_date + timedelta(days=90)  # 3 months by default
 
-        prompt = f"""You are a GATE CSE preparation expert. Parse the following study plan and convert it into a structured format with daily tasks.
+        # Truncate very long plans to avoid token limits
+        max_plan_length = 3000
+        if len(plan_text) > max_plan_length:
+            plan_text = plan_text[:max_plan_length] + "\n... (plan truncated)"
+            logger.warning(f"Plan text truncated from {len(plan_text)} to {max_plan_length} chars")
 
-STUDY PLAN:
+        prompt = f"""Parse this GATE CSE study plan into structured tasks. Return JSON only.
+
+PLAN:
 {plan_text}
 
-START DATE: {start_date.isoformat()}
-END DATE: {end_date.isoformat()}
+DATE RANGE: {start_date.isoformat()} to {end_date.isoformat()}
 
-GATE CSE SUBJECTS (use these exact names):
-- Data Structures and Algorithms
-- Operating Systems
-- Database Management Systems
-- Computer Networks
-- Theory of Computation
-- Compiler Design
-- Computer Organization and Architecture
-- Digital Logic
-- Discrete Mathematics
-- Engineering Mathematics
-- Programming and Data Structures
-- Aptitude
+SUBJECTS: Data Structures and Algorithms, Operating Systems, Database Management Systems, Computer Networks, Theory of Computation, Compiler Design, Computer Organization and Architecture, Digital Logic, Discrete Mathematics, Engineering Mathematics
 
-TASK NAMING GUIDELINES:
-- Title should be specific and actionable (e.g., "Study Binary Search Trees - Insertion & Deletion Operations" NOT just "BST")
-- Include the specific concept/topic in the title
-- Description should explain:
-  * What exactly to study/practice
-  * Key concepts to focus on
-  * Recommended resources if applicable
-  * Expected learning outcomes
-- Topic field should be the specific subtopic (e.g., "Binary Search Trees" under "Data Structures and Algorithms")
-
-INSTRUCTIONS:
-1. Identify all subjects and topics mentioned
-2. Create a logical study schedule spreading tasks across the date range
-3. Include revision tasks (mark is_revision: true) - schedule revisions 3-7 days after initial study
-4. Estimate realistic study durations (30-120 minutes per task)
-5. Prioritize foundational topics before advanced ones
-6. Include practice problems and previous year questions
-7. Make task titles descriptive and specific
-8. Add detailed descriptions explaining what to cover
-
-OUTPUT FORMAT (JSON):
+OUTPUT JSON FORMAT:
 {{
-    "goal_title": "GATE 2025 Preparation Plan",
+    "goal_title": "GATE Preparation Plan",
     "subjects_identified": ["Subject1", "Subject2"],
-    "monthly_goals": [
-        {{"month": "2024-01", "focus_subjects": ["Subject1"], "target": "Complete basics"}}
-    ],
     "tasks": [
         {{
-            "title": "Study [Topic] - [Specific Concepts] | [Subject Short Name]",
-            "description": "Cover the following concepts:\\n- Concept 1: explanation\\n- Concept 2: explanation\\n\\nKey points to remember:\\n- Point 1\\n- Point 2\\n\\nPractice: Solve 5-10 problems on this topic",
-            "topic": "Specific topic name",
-            "subject": "Subject name from list above",
+            "title": "Study Topic - Key Concepts | Subject",
+            "description": "Brief description of what to cover",
+            "topic": "Topic name",
+            "subject": "Subject name",
             "scheduled_date": "YYYY-MM-DD",
             "estimated_minutes": 60,
             "priority": 2,
             "is_revision": false
         }}
     ],
-    "weekly_breakdown": {{
-        "Week 1": ["Topic 1", "Topic 2"],
-        "Week 2": ["Topic 3", "Topic 4"]
-    }}
+    "weekly_breakdown": {{"Week 1": ["Topic 1", "Topic 2"]}}
 }}
 
-TITLE EXAMPLES:
-- "Study Arrays - Time Complexity & Space Analysis | DSA"
-- "Practice Linked List Problems - Reversal & Cycle Detection | DSA"
-- "Learn Process Scheduling - FCFS, SJF, Priority | OS"
-- "Revise SQL Joins - Inner, Outer, Cross Joins | DBMS"
-- "Solve PYQs - Graph Algorithms (2018-2023) | DSA"
-
-Generate at least 50 tasks spread across the date range. Be comprehensive and practical.
-Return ONLY valid JSON, no other text."""
+Generate 15-25 tasks spread across the date range. Return ONLY valid JSON."""
 
         messages = [{"role": "user", "content": prompt}]
-        response = self._call_llm(messages, temperature=0.3)
-        return self._extract_json(response)
+
+        try:
+            response = self._call_llm(messages, temperature=0.3)
+            return self._extract_json(response)
+        except Exception as e:
+            logger.error(f"Failed to parse study plan: {e}")
+            # Return a fallback response
+            return {
+                "goal_title": "GATE Preparation Plan",
+                "subjects_identified": [],
+                "tasks": [],
+                "weekly_breakdown": {},
+                "error": str(e)
+            }
 
     async def generate_daily_tasks(
         self,
@@ -251,41 +253,49 @@ Return ONLY valid JSON array."""
     ) -> List[Dict]:
         """Generate personalized insights based on progress data."""
 
-        prompt = f"""Analyze this GATE preparation progress and generate actionable insights.
+        # Limit the data sent to LLM to avoid token issues
+        recent_tasks_limited = recent_tasks[:20] if recent_tasks else []
+        subject_stats_limited = subject_stats[:10] if subject_stats else []
 
-PROGRESS SUMMARY:
-{json.dumps(progress_data, default=str, indent=2)}
+        # Create a compact summary
+        summary = {
+            "period": progress_data.get("period", "Last 14 days"),
+            "total_tasks": progress_data.get("total_tasks", 0),
+            "completed": progress_data.get("completed_tasks", 0),
+            "completion_rate": progress_data.get("completion_rate", 0),
+        }
 
-RECENT TASKS (last 14 days):
-{json.dumps(recent_tasks, default=str, indent=2)}
+        prompt = f"""Analyze GATE preparation progress. Return JSON array only.
 
-SUBJECT-WISE STATS:
-{json.dumps(subject_stats, default=str, indent=2)}
+SUMMARY: {json.dumps(summary)}
+SUBJECTS: {json.dumps(subject_stats_limited, default=str)}
 
-Generate 3-5 specific, actionable insights. Types:
-- weak_subject: Subjects needing more attention
-- consistency_drop: Patterns of missed days/tasks
-- overload: Days with too many tasks
-- missed_revision: Topics that need revision
-- strength: Subjects where progress is good
-- recommendation: Specific study suggestions
+Generate 2-4 insights. Types: weak_subject, consistency_drop, strength, recommendation
 
-OUTPUT FORMAT (JSON array):
-[
-    {{
-        "insight_type": "weak_subject",
-        "title": "Short, clear title",
-        "content": "Detailed insight with specific recommendations",
-        "priority": 1,
-        "data": {{"subject": "OS", "completion_rate": 0.45}}
-    }}
-]
+OUTPUT (JSON array):
+[{{"insight_type": "type", "title": "Short title", "content": "Brief recommendation", "priority": 1, "data": {{}}}}]
 
-Be specific, data-driven, and constructive. Return ONLY valid JSON array."""
+Return ONLY valid JSON array."""
 
         messages = [{"role": "user", "content": prompt}]
-        response = self._call_llm(messages, temperature=0.6)
-        return self._extract_json(response)
+
+        try:
+            response = self._call_llm(messages, temperature=0.6)
+            result = self._extract_json(response)
+            # Ensure it's a list
+            if isinstance(result, dict):
+                return [result]
+            return result if isinstance(result, list) else []
+        except Exception as e:
+            logger.error(f"Failed to generate insights: {e}")
+            # Return a fallback insight
+            return [{
+                "insight_type": "recommendation",
+                "title": "Keep up the good work!",
+                "content": "Continue with your study plan and maintain consistency.",
+                "priority": 2,
+                "data": {}
+            }]
 
     async def mentor_chat(
         self,

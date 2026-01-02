@@ -13,6 +13,80 @@ from app.services.llm_service import llm_service
 router = APIRouter(prefix="/insights", tags=["insights"])
 
 
+# IMPORTANT: Static routes MUST come before dynamic routes like /{insight_id}
+@router.delete("/clear-all")
+async def clear_all_insights(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Clear all insights for the user."""
+    user_id = int(current_user["sub"])
+
+    result = await db.execute(
+        select(Insight).where(Insight.user_id == user_id)
+    )
+    insights = result.scalars().all()
+
+    count = len(insights)
+    for insight in insights:
+        await db.delete(insight)
+
+    await db.commit()
+
+    return {"message": f"Cleared {count} insights", "count": count}
+
+
+@router.patch("/mark-all-read")
+async def mark_all_insights_read(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark all insights as read."""
+    user_id = int(current_user["sub"])
+
+    result = await db.execute(
+        select(Insight).where(
+            and_(
+                Insight.user_id == user_id,
+                Insight.is_read == False
+            )
+        )
+    )
+    insights = result.scalars().all()
+
+    count = len(insights)
+    for insight in insights:
+        insight.is_read = True
+
+    await db.commit()
+
+    return {"message": f"Marked {count} insights as read", "count": count}
+
+
+@router.get("/summary")
+async def get_insights_summary(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get summary of insights."""
+    user_id = int(current_user["sub"])
+
+    result = await db.execute(
+        select(
+            func.count(Insight.id).label('total'),
+            func.count(Insight.id).filter(Insight.is_read == False).label('unread'),
+            func.count(Insight.id).filter(Insight.priority == 1).label('high_priority')
+        ).where(Insight.user_id == user_id)
+    )
+    row = result.one()
+
+    return {
+        "total": row.total or 0,
+        "unread": row.unread or 0,
+        "high_priority": row.high_priority or 0
+    }
+
+
 @router.get("", response_model=List[InsightResponse])
 async def get_insights(
     unread_only: bool = False,
@@ -230,76 +304,3 @@ async def delete_insight(
     await db.commit()
 
     return {"message": "Insight deleted"}
-
-
-@router.delete("/clear-all")
-async def clear_all_insights(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Clear all insights for the user."""
-    user_id = int(current_user["sub"])
-
-    result = await db.execute(
-        select(Insight).where(Insight.user_id == user_id)
-    )
-    insights = result.scalars().all()
-
-    count = len(insights)
-    for insight in insights:
-        await db.delete(insight)
-
-    await db.commit()
-
-    return {"message": f"Cleared {count} insights", "count": count}
-
-
-@router.patch("/mark-all-read")
-async def mark_all_insights_read(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Mark all insights as read."""
-    user_id = int(current_user["sub"])
-
-    result = await db.execute(
-        select(Insight).where(
-            and_(
-                Insight.user_id == user_id,
-                Insight.is_read == False
-            )
-        )
-    )
-    insights = result.scalars().all()
-
-    count = len(insights)
-    for insight in insights:
-        insight.is_read = True
-
-    await db.commit()
-
-    return {"message": f"Marked {count} insights as read", "count": count}
-
-
-@router.get("/summary")
-async def get_insights_summary(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get summary of insights."""
-    user_id = int(current_user["sub"])
-
-    result = await db.execute(
-        select(
-            func.count(Insight.id).label('total'),
-            func.count(Insight.id).filter(Insight.is_read == False).label('unread'),
-            func.count(Insight.id).filter(Insight.priority == 1).label('high_priority')
-        ).where(Insight.user_id == user_id)
-    )
-    row = result.one()
-
-    return {
-        "total": row.total or 0,
-        "unread": row.unread or 0,
-        "high_priority": row.high_priority or 0
-    }
