@@ -4,6 +4,7 @@ from sqlalchemy import select, and_, func, or_
 from sqlalchemy.orm import selectinload
 from typing import List
 from datetime import date, datetime, timedelta
+import logging
 
 from app.db.database import get_db
 from app.core.security import get_current_user
@@ -14,6 +15,8 @@ from app.schemas.schemas import (
     ChatRequest, ChatResponse, ChatSessionResponse, TaskCreate
 )
 from app.services.llm_service import llm_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -220,7 +223,7 @@ async def send_message(
 
                 try:
                     scheduled_date = date.fromisoformat(task_data.get("scheduled_date", str(date.today())))
-                except:
+                except (ValueError, TypeError):
                     scheduled_date = date.today()
 
                 task = Task(
@@ -287,7 +290,7 @@ async def send_message(
                     if "scheduled_date" in updates:
                         try:
                             task.scheduled_date = date.fromisoformat(updates["scheduled_date"])
-                        except:
+                        except (ValueError, TypeError):
                             pass
                     if "estimated_minutes" in updates:
                         task.estimated_minutes = updates["estimated_minutes"]
@@ -329,7 +332,8 @@ async def send_message(
 
                     await db.commit()
                     action_taken = f"Rescheduled {rescheduled_count} task(s) to {new_date_str}"
-                except:
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Failed to reschedule tasks: {e}")
                     action_taken = "Failed to reschedule tasks"
 
     # Add assistant response to history

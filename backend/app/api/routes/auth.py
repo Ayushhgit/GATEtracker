@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
+from passlib.hash import bcrypt
 
 from app.db.database import get_db
 from app.core.config import settings
@@ -15,6 +16,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Single-user login with PIN."""
+    # Validate PIN length
+    if not request.pin or len(request.pin) < 4:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="PIN must be at least 4 characters"
+        )
+
     if not verify_pin(request.pin):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -30,7 +38,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user:
         user = User(
             email=settings.USER_EMAIL,
-            pin_hash=request.pin,  # In production, hash this
+            pin_hash=bcrypt.hash(request.pin),  # Hash the PIN
             name="GATE Aspirant"
         )
         db.add(user)
